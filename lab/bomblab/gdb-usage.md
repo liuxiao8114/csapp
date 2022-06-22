@@ -5,7 +5,6 @@ b *0x40143a
 
 // phase1
 b *0x400ee0
-
 b *0x400eee   // phase1 check
 
 Border relations with Canada have never been better.
@@ -39,14 +38,6 @@ b *0x400e53
 Border relations with Canada have never been better.
 
 b *0x40148f   // before explode in read_six_numbers()
-
-
-
-
-
-
-
-
 b *0x400f0a   // return from read_six_numbers, check if explode in phase2()
 b *0x400f1c   // another check if explode in phase2()
 
@@ -177,4 +168,33 @@ Border relations with Canada have never been better.
 1 311
 1 0
 
-b *0x401062
+b *0x401067
+b *0x4010ae
+
+
+// phase6:
+Border relations with Canada have never been better.
+1 2 4 8 16 32
+1 311
+1 0
+yonuvw
+
+b *0x4010fc
+  %rsp: 0x7fffffffe150: 0x0000000000402210
+  %r13: 0x7fffffffe270: 0x0000000000000001
+
+4010fc:     sub    $0x50,%rsp
+  %r13: 0x7fffffffe100: 0x0000000000000050
+  %rsp: 0x7fffffffe100: 0x0000000000000050
+  %rsi: 0x7fffffffe100: 0x0000000000000050
+
+b *0x401103
+
+<read_six_numbers> %rdi: input  %rsi: 0x7fffffffe100
+%rdx:     0x7fffffffe100
+%rcx:     0x7fffffffe104
+%rsp + 8: 0x7fffffffe120
+%rsp:     0x7fffffffe110
+%r9:      0x7fffffffe10c
+%r8:      0x7fffffffe108
+%rsi:     0x4025c3
