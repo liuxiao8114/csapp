@@ -8,6 +8,8 @@ int main() {
   printf("%.8x\n", 234);
   printf("%8x\n", 234);
   printf("%8x\n", 0x59b997fa);
-  printf("%d\n", strncmp("59b997fa", "1", 9));
   printf("%s\n", "\\001");
+
+  char *s = "59b997fa";
+  printf("%d\n", strncmp(s, "1", 9));
 }

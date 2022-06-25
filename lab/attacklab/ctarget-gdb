@@ -1,30 +1,29 @@
-b *0x401a40  #<Gets> starts
-b *0x401a67  #in <Gets> before <_IO_getc>
-b *0x401a7d  #in <Gets> after all <_IO_getc>
+x/16xg $rsp
+x/32xg $rsp
 
 level 1
-0x5561dc58:     0x0000000055586000      0x0000000055685fe8
-0x5561dc68:     0x0000000000000002      0x00000000004017b4
-0x5561dc78:     0x0000000000000000      0x0000000000000000
-0x5561dc88:     0x0000000000000000      0x0000000000000000
-0x5561dc98:     0x0000000055586000      0x0000000000401976
-0x5561dca8:     0x0000000000000009      0x0000000000401f24
-0x5561dcb8:     0x0000000000000000      0xf4f4f4f4f4f4f4f4
-
-
-3*256 + 16 * 15 + 15
-= 768 + 240 + 15
-= 768 + 255
-= 1023
-0x3ff   0x63
+r < level1-raw -q
 
 level 2
+r < level2-raw -q
+
 b *0x4017ec       # touch2
 b *0x4017b4       # return from <Gets>
-x/16xg 0x6044e4   # cookie
 
-x/8xg  0x55586000
+level 3
+r < level3-raw -q
+cc -c level3.s
+objdump -d level3.o > level3-objdump-d
 
+b *0x4018cc
+x/32xg 0x5561dc00
 
-b *0x401054       # gencookie
-b *0x401b1e
+level 4
+r < level4-raw -q
+b *0x4017ac      # before call <Gets>
+b *0x4017b4
+b *0x401ba0
+b *0x401b9d
+
+level 5
+r < level5-raw -q
