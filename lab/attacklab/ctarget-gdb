@@ -1,0 +1,29 @@
+x/16xg $rsp
+x/32xg $rsp
+
+level 1
+r < level1-raw -q
+
+level 2
+r < level2-raw -q
+
+b *0x4017ec       # touch2
+b *0x4017b4       # return from <Gets>
+
+level 3
+r < level3-raw -q
+cc -c level3.s
+objdump -d level3.o > level3-objdump-d
+
+b *0x4018cc
+x/32xg 0x5561dc00
+
+level 4
+r < level4-raw -q
+b *0x4017ac      # before call <Gets>
+b *0x4017b4
+b *0x401ba0
+b *0x401b9d
+
+level 5
+r < level5-raw -q
