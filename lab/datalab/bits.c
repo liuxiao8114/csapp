@@ -176,12 +176,14 @@ int isTmax(int x) {
  *   Examples allOddBits(0xFFFFFFFD) = 0, allOddBits(0xAAAAAAAA) = 1
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 12
- *   Used ops: 9
+ *   Used ops: 7
  *   Rating: 2
  */
 int allOddBits(int x) {
-  int y = 0xaa << 24 | 0xaa << 16 | 0xaa << 8 | 0xaa;
-  return !((x & y) ^ y);
+  // int y = 0xaa << 24 | 0xaa << 16 | 0xaa << 8 | 0xaa;
+  // return !((x & y) ^ y);
+  int y = 0xaa << 8 | 0xaa;
+  return !(((x >> 16 & x) & y) ^ y);
 }
 /*
  * negate - return -x
@@ -213,13 +215,13 @@ int isAsciiDigit(int x) {
  *   Example: conditional(2,4,5) = 4
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 16
- *   Used ops: 9
+ *   Used ops: 7
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
   int xn = ~!x + 1;
-  x = ~!xn + 1;
-  return (y & x) | (z & xn);
+  // x = ~!xn + 1;
+  return (y & ~xn) | (z & xn);
 }
 /*
  * isLessOrEqual - if x <= y  then return 1, else return 0
