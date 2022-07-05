@@ -162,12 +162,13 @@ int tmin(void) {
  *     and 0 otherwise
  *   Legal ops: ! ~ & ^ | +
  *   Max ops: 10
- *   Used ops: 8
+ *   Used ops: 7
  *   Rating: 1
  */
 int isTmax(int x) {
   int y = x + 1;
-  return !!(y ^ 0) & !(y ^ ~x);
+  return !!y & !(y ^ ~x);
+  // return (x >> 31 ^ 1) & !((x + 1) ^ ~x); // why replace ~x with (1 << 31) is not work?
 }
 /*
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -259,10 +260,59 @@ int logicalNeg(int x) {
  *            howManyBits(0x80000000) = 32
  *  Legal ops: ! ~ & ^ | + << >>
  *  Max ops: 90
+ *  Used ops: 30
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  /*
+     0 => 0
+     1 => 01
+    -1 => 1
+     2 => 010
+    -2 => 10
+     5 => 0101
+    -5 => 1011
+    15 => 01111
+   -15 => 10001
+    16 => 010000
+   -16 => 10000
+
+    0   0
+    1   01
+    2   010
+    3   011
+    4   0100
+  */
+  int b16, b8, b4, b2, b1;
+  x ^= (x >> 31);
+  /*
+    if x is negtive, x >> 31 results 0xffffffff, x ^ (x >> 31) results ~x
+    if x is postive, x >> 31 results 0x0       , x ^ (x >> 31) results  x
+  */
+
+  b16 = !!(x >> 16) << 4;
+  x >>= b16; // high 16-bits or low 16-bits
+
+  b8 = !!(x >> 8) << 3;
+  x >>= b8;
+
+  b4 = !!(x >> 4) << 2;
+  x >>= b4;
+
+  b2 = !!(x >> 2) << 1;
+  x >>= b2;
+
+  b1 = x >> 1;
+  x >>= b1;
+
+  /*
+    0    b1 = 0, x = 0
+    1    b1 = 0, x = 1
+    10   b1 = 1, x = 1
+    11   b1 = 1. x = 1
+  */
+
+  return b16 + b8 + b4 + b2 + b1 + x + 1;
 }
 //float
 /*
@@ -274,10 +324,26 @@ int howManyBits(int x) {
  *   When argument is NaN, return argument
  *   Legal ops: Any integer/unsigned operations incl. ||, &&. also if, while
  *   Max ops: 30
+ *   Used ops: 14
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+ unsigned s, e, f;
+
+ // NaN or Infinity
+ if((uf < 0x80000000u && uf >= 0x7f800000u) || uf >= 0xff800000u)
+   return uf;
+
+ s = uf & 0x80000000;
+ e = uf & 0x7f800000;
+ f = uf & 0x007fffff;
+
+ // denormalized
+ if(e == 0)
+   return s + (f << 1);
+
+ // normalized
+ return s + (e + 0x800000) + f;
 }
 /*
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -289,10 +355,34 @@ unsigned floatScale2(unsigned uf) {
  *   0x80000000u.
  *   Legal ops: Any integer/unsigned operations incl. ||, &&. also if, while
  *   Max ops: 30
+ *   Used ops: 17
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  unsigned s, e, bias, eBias;
+  int ret;
+
+  // NaN or Infinity
+  if((uf < 0x80000000u && uf >= 0x7f800000u) || uf >= 0xff800000u)
+    return 0x80000000u;
+
+  s = uf & 0x80000000;
+  e = uf & 0x7f800000;
+  bias =   0x3f800000;
+
+  if(e == 0 || e < bias)
+    return 0;
+
+  eBias = (e - bias) >> 23;
+
+  if(eBias > 30)
+    return 0x80000000u;
+
+  ret = 1 << eBias;
+
+  if(s > 0)
+    return ret * -1;
+  return ret;
 }
 /*
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -305,8 +395,21 @@ int floatFloat2Int(unsigned uf) {
  *
  *   Legal ops: Any integer/unsigned operations incl. ||, &&. Also if, while
  *   Max ops: 30
+ *   Used ops: 11
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+  if(x == 0)
+    return 0x3f800000; // 1.0
+  if(x > 0) {
+    if(x > 0x7f)  // If too large, return +INF.
+      return 0x7f800000u;
+    return ((x + 0x7f) << 23) & 0x7f800000;
+  }
+
+  x = -x;
+
+  if(x == 0x80000000 || x > 30) // If too small, return 0
+    return 0;
+  return 0x40000000 >> x;
 }
