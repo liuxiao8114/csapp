@@ -10,11 +10,10 @@ YAS=$(ISADIR)/yas
 	$(YAS) $*.ys
 
 test:
-	./optest.pl -s $(SIM) $(TFLAGS)
-	./jtest.pl -s $(SIM) $(TFLAGS)
-	./ctest.pl -s $(SIM) $(TFLAGS)
-	./htest.pl -s $(SIM) $(TFLAGS)
+	perl ./optest.pl -s $(SIM) $(TFLAGS)
+	perl ./jtest.pl -s $(SIM) $(TFLAGS)
+	perl ./ctest.pl -s $(SIM) $(TFLAGS)
+	perl ./htest.pl -s $(SIM) $(TFLAGS)
 
 clean:
 	rm -f *.o *~ *.yo *.ys
-

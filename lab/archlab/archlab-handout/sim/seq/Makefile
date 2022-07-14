@@ -1,23 +1,23 @@
 # Modify this line to indicate the default version
 
-VERSION=std
+VERSION=full
 
 # Comment this out if you don't have Tcl/Tk on your system
 
-GUIMODE=-DHAS_GUI
+#GUIMODE=-DHAS_GUI
 
 # Modify the following line so that gcc can find the libtcl.so and
 # libtk.so libraries on your system. You may need to use the -L option
 # to tell gcc which directory to look in. Comment this out if you
 # don't have Tcl/Tk.
 
-TKLIBS=-L/usr/lib -ltk -ltcl
+#TKLIBS=-L/usr/lib -ltk -ltcl
 
 # Modify the following line so that gcc can find the tcl.h and tk.h
 # header files on your system. Comment this out if you don't have
 # Tcl/Tk.
 
-TKINC=-isystem /usr/include/tcl8.5
+#TKINC=-isystem /usr/include/tcl8.5
 
 # Modify these two lines to choose your compiler and compile time
 # flags.
@@ -45,7 +45,7 @@ ssim: seq-$(VERSION).hcl ssim.c  sim.h $(MISCDIR)/isa.c $(MISCDIR)/isa.h
 		seq-$(VERSION).c ssim.c $(MISCDIR)/isa.c $(LIBS)
 
 # This rule builds the SEQ+ simulator (ssim+)
-ssim+: seq+-std.hcl ssim.c sim.h $(MISCDIR)/isa.c $(MISCDIR)/isa.h 
+ssim+: seq+-std.hcl ssim.c sim.h $(MISCDIR)/isa.c $(MISCDIR)/isa.h
 	# Building the seq+-std.hcl version of SEQ+
 	$(HCL2C) -n seq+-std.hcl <seq+-std.hcl >seq+-std.c
 	$(CC) $(CFLAGS) $(INC) -o ssim+ \
@@ -59,7 +59,3 @@ ssim+: seq+-std.hcl ssim.c sim.h $(MISCDIR)/isa.c $(MISCDIR)/isa.h
 
 clean:
 	rm -f ssim ssim+ seq*-*.c *.o *~ *.exe *.yo *.ys
-
-
-
-
