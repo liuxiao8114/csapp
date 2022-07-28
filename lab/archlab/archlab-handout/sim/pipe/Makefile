@@ -46,9 +46,9 @@ psim: psim.c sim.h pipe-$(VERSION).hcl $(MISCDIR)/isa.c $(MISCDIR)/isa.h
 
 # This rule builds driver programs for Part C of the Architecture Lab
 drivers:
-	perl ./gen-driver.pl -n 4 -f ncopy.ys > sdriver.ys
+	./gen-driver.pl -n 4 -f ncopy.ys > sdriver.ys
 	../misc/yas sdriver.ys
-	perl ./gen-driver.pl -n 63 -f ncopy.ys > ldriver.ys
+	./gen-driver.pl -n 63 -f ncopy.ys > ldriver.ys
 	../misc/yas ldriver.ys
 
 # These are implicit rules for assembling .yo files from .ys files.

@@ -1,5 +1,5 @@
-#!/usr/bin/perl 
-#!/usr/local/bin/perl 
+#!/usr/bin/perl
+#!/usr/local/bin/perl
 
 #
 # gen-driver - Generate driver file for any ncopy function
@@ -87,7 +87,7 @@ main:	irmovq Stack, %rsp  	# Set up stack pointer
 	irmovq \$$n, %rdx		# src and dst have $n elements
 	irmovq dest, %rsi	# dst array
 	irmovq src, %rdi	# src array
-	call ncopy		 
+	call ncopy
 PROLOGUE
 
 if ($check) {
@@ -116,7 +116,7 @@ print "EndFun:\n";
 
 if ($check) {
 print <<CHECK;
-#################################################################### 
+####################################################################
 # Epilogue code for the correctness testing driver
 ####################################################################
 
@@ -196,7 +196,7 @@ CHECK
 print <<EPILOGUE1;
 
 ###############################
-# Source and destination blocks 
+# Source and destination blocks
 ###############################
 	.align 8
 src:
@@ -244,4 +244,3 @@ Postdest:
 
 Stack:
 EPILOGUE3
-

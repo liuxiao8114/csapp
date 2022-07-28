@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 #!/usr/local/bin/perl
 
-# 
-# benchmark.pl - Run test of pipeline on ncopy for different block sizes 
+#
+# benchmark.pl - Run test of pipeline on ncopy for different block sizes
 #                and determine CPE (cycles per element)
 #
 use Getopt::Std;
@@ -93,7 +93,7 @@ for ($i = 0; $i <= $blocklen; $i++) {
 	printf "%d\t%d\n", $i, $stat;
       }
     }
-      
+
 }
 
 $acpe = $tcpe/$blocklen;
@@ -107,4 +107,3 @@ if ($acpe <= $fullcpe) {
     $score = $totalpoints * ($threshcpe - $acpe)/($threshcpe - $fullcpe);
 }
 printf "Score\t%.1f/%.1f\n", $score, $totalpoints;
-

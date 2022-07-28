@@ -1,5 +1,4 @@
-#!/usr/bin/perl
-#!/usr/local/bin/perl
+#!/usr/bin/env perl
 
 #
 # correctness.pl - Test ncopy assembly code for correctness
@@ -134,6 +133,3 @@ for ($i = 0; $i <= $blocklen+$over; $i++) {
 
 $bp1 = $blocklen+$over+1;
 printf "$goodcnt/$bp1 pass correctness test\n";
-
-
-
