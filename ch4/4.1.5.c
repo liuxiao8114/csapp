@@ -42,13 +42,7 @@ long sum(long *start, long count) {
     ret
 */
 
-/*
-.pos 0
-irmovq stack, %rsp
-
-*/
-
-/* pp4.3
+/* p4.3
   sum:
     xorq %rax, %rax
     andq %rsi, %rsi
