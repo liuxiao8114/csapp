@@ -1,0 +1,73 @@
+## 4.3 Sequntial Y86-64 Implementations
+
+### 4.3.2 SEQ HArdware Structure
+p.434
+To map the computations into hardware, we want to implement control logic
+that will transfer the data between the different hardware units and operate
+these units in such a way that the specified operations are performed for each of
+the different instruction types.
+
+### 4.3.4 SEQ Stage Implementations
+#### Fetch Stage
+
+
+#### Decode and Write-Back Stages
+These two stages are combined because they both access the register file.
+four ports
+two simultaneous reads and two simultaneous writes
+each port has both an address connection and a data connection, where the address connection is
+a register ID, and the data connection is a set of 64 wires serving as either an output word or
+an input word of the register file.
+Register ID srcA indicates which register should be read to generate valA.
+
+word srcA = [
+  icode in { IOPQ, IRRMOVQ, IRMMOVQ, IPUSHQ } : rA;
+  icode in { IPOPQ, IRET } : RRSP;
+  1:  RNONE;
+]
+
+word srcB = [
+  icode in { IOPQ, IMRMOVQ, IRMMOVQ, IPUSHQ } : rB;
+  icode in { IPUSHQ, IPOPQ, ICALL, IRET } : RRSP;
+  1:  RNONE;
+]
+
+word dstE = [
+  icode in { IOPQ, IRRMOVQ, IIRMOVQ } : rB;
+  icode in { IPUSHQ, IPOPQ, ICALL, IRET }: RRSP;
+  1:  RNONE;
+]
+
+word dstM = [
+  icode in { IMRMOVQ, IPOPQ } : rA;
+  1: RNONE;
+]
+
+#### Execute Stage
+word aluA = [
+  icode in { IRRMOVQ } : valA;
+  icode in { IIRMOVQ, IMRMOVQ, IRMMOVQ } : valC;
+  icode in { IPUSHQ, ICALL } : -8;
+  icode in { IPOPQ, IRET } : 8;
+]
+
+word aluB = [
+  { IIRMOVQ, IRRMOVQ }: 0;
+  { IOPQ, IMRMOVQ, IRMMOVQ, IPUSHQ, IPOPQ,  }: valB;
+]
+
+#### Memory Stage
+word mem_addr = [
+  icode in { IMRMOVQ, IRMMOVQ, IPUSHQ, ICALL }: valE;
+  icode in { IPOPQ, IRET }: valA;
+  # Default: Don't need address
+]
+
+word mem_data = [
+  icode in { IRMMOVQ, IPUSHQ }: valA;
+  icode ==  ICALL : valP;
+  # Default: Don't write anything
+]
+
+bool mem_read = icode in { IMRMOVQ, IPOPQ, IRET };
+bool mem_write = icode in { IRMMOVQ, IPUSHQ, ICALL };
