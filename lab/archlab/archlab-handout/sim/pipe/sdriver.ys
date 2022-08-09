@@ -31,14 +31,26 @@ ncopy:
 # Loop header
   xorq %rax,%rax		  # count = 0
   irmovq $1, %rcx
+  irmovq $8, %rbx    # set k = 8
 
-  irmovq $8, %rbx     # set k
   rrmovq %rdx, %rbp   # i = len
   subq %rbx, %rbp     # i -= k
-  jge Unroll8         # if so => start Unroll1
+  jge Unroll8         # if i >= 0, goto Unroll8
+  rrmovq %rdx, %rbp   # i = len
 
-  andq %rdx, %rdx
-  jg NormalLoop
+Unroll2Prev:
+  irmovq $2, %rbx     # set k = 2
+  subq %rbx, %rbp     # i -= k
+  jge Unroll2         # if i >= 0, goto Unroll2
+  addq %rcx, %rbp
+  jl Done
+
+One:
+  mrmovq (%rdi), %r10	# read val from src...
+  addq %rax, %rcx     # count++ here for cmov, otherwise data dependency happened here.
+  rmmovq %r10, (%rsi)	# ...and store it to dst
+  andq %r10, %r10			# val <= 0?
+  cmovg %rcx, %rax
   ret
 
 Unroll8:
@@ -49,6 +61,7 @@ Unroll8:
 	mrmovq 32(%rdi), %r12	# read val from src...
 	mrmovq 40(%rdi), %r13	# read val from src...
 	mrmovq 48(%rdi), %r14	# read val from src...
+	mrmovq 56(%rdi), %rdx	# read val from src...
 	rmmovq %r8,   (%rsi)	# ...and store it to dst
 	rmmovq %r9,  8(%rsi)	# ...and store it to dst
 	rmmovq %r10, 16(%rsi)	# ...and store it to dst
@@ -56,12 +69,13 @@ Unroll8:
 	rmmovq %r12, 32(%rsi)	# ...and store it to dst
 	rmmovq %r13, 40(%rsi)	# ...and store it to dst
 	rmmovq %r14, 48(%rsi)	# ...and store it to dst
+	rmmovq %rdx, 56(%rsi)	# ...and store it to dst
 
-	andq %r8, %r8			# val <= 0?
+	andq %r8, %r8		  	# val <= 0?
   jle Val2
   addq %rcx, %rax			# count++
 Val2:
-  andq %r9, %r9			# val <= 0?
+  andq %r9, %r9			  # val <= 0?
   jle Val3
   addq %rcx, %rax			# count++
 Val3:
@@ -85,83 +99,39 @@ Val7:
   jle Val8
   addq %rcx, %rax			# count++
 Val8:
-  mrmovq 56(%rdi), %r8	# read val from src...
-  iaddq $64, %rdi			# src += 8
-  rmmovq %r8, 56(%rsi)	# ...and store it to dst
-  iaddq $64, %rsi			# dst += 8
-  andq %r8, %r8			# val <= 0?
+  andq %rdx, %rdx			# val <= 0?
   jle LoopJudgement8
   addq %rcx, %rax			# count++
 
 LoopJudgement8:
+  iaddq $64, %rdi		  # src += 8
+  iaddq $64, %rsi		  # dst += 8
 	subq %rbx, %rbp			# i -= k
 	jge Unroll8
-  subq %rcx, %rbp     # i = i - 1
-  addq %rbp, %rbx     # k = k + i
-  jl Done
-  irmovq $3, %rdx     # reset %rdx = 3
-  rrmovq %rbx, %rbp   # i = len
-  subq %rdx, %rbp     # i -= 3
-  cmovge %rdx, %rbx   # set k = 3
-  jge Unroll3         # if so => start Unroll31
-  jmp Loop2
 
-Unroll3:
+  addq %rbx, %rbp     # i = k + i
+  jmp Unroll2Prev
+
+Unroll2:
 	mrmovq   (%rdi), %r8	# read val from src...
 	mrmovq  8(%rdi), %r9	# read val from src...
-	mrmovq 16(%rdi), %r10	# read val from src...
 	rmmovq %r8,    (%rsi)	# ...and store it to dst
 	rmmovq %r9,   8(%rsi)	# ...and store it to dst
-	rmmovq %r10, 16(%rsi)	# ...and store it to dst
-  iaddq $24, %rdi			# src += 3
-  iaddq $24, %rsi			# dst += 3
 
   andq %r8, %r8			# val <= 0?
-  jle U3Val2
+  jle U4Val2
   addq %rcx, %rax			# count++
-U3Val2:
+U4Val2:
   andq %r9, %r9			# val <= 0?
-  jle U3Val3
+  jle LoopJudgement2
   addq %rcx, %rax			# count++
-U3Val3:
-  andq %r10, %r10			# val <= 0?
-  jle LoopJudgement3
-  addq %rcx, %rax			# count++
-
-LoopJudgement3:
+LoopJudgement2:
+  iaddq $16, %rdi	  	# src += 2
+  iaddq $16, %rsi	  	# dst += 2
 	subq %rbx, %rbp			# i -= k
-	jge Unroll3
-  subq %rcx, %rbp     # i = i - 1
+	jge Unroll2
   addq %rbp, %rbx     # k = k + i
-  jge Loop2
-  ret
-
-Loop2:
-  mrmovq (%rdi), %r10	# read val from src...
-  iaddq $8, %rdi			# src++
-  rmmovq %r10, (%rsi)	# ...and store it to dst
-  iaddq $8, %rsi			# dst++
-  andq %r10, %r10			# val <= 0?
-  jle Loop2Judgement
-  addq %rcx, %rax			# count++
-
-Loop2Judgement:
-  subq %rcx, %rbx     # k--
-  jge Loop2           #
-  ret
-
-NormalLoop:
-  mrmovq (%rdi), %r10	# read val from src...
-  iaddq $8, %rdi			# src++
-  rmmovq %r10, (%rsi)	# ...and store it to dst
-  iaddq $8, %rsi			# dst++
-  andq %r10, %r10			# val <= 0?
-  jle NormalLoopJudgement
-  addq %rcx, %rax			# count++
-
-NormalLoopJudgement:
-  subq %rcx, %rdx     # k--
-  jg NormalLoop
+  jg One
 ##################################################################
 # Do not modify the following section of code
 # Function epilogue.
@@ -178,10 +148,10 @@ EndFun:
 ###############################
 	.align 8
 src:
-	.quad 1
-	.quad 2
-	.quad -3
-	.quad -4
+	.quad -1
+	.quad -2
+	.quad 3
+	.quad 4
 	.quad 0xbcdefa # This shouldn't get moved
 
 	.align 16
