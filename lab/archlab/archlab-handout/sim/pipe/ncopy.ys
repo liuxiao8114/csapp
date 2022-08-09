@@ -18,18 +18,34 @@ ncopy:
 # Loop header
   xorq %rax,%rax		  # count = 0
   irmovq $8, %rbx     # set k = 8
-
   rrmovq %rdx, %rbp   # i = len
   subq %rbx, %rdx     # len -= k
   jge Unroll8         # if i >= 0, goto Unroll8
-
-Unroll2Prev:
   irmovq $2, %rbx     # set k = 2
   subq %rbx, %rbp     # i -= k
-  jge Unroll2         # if i >= 0, goto Unroll2
+  jge Above2          # if i >= 0, goto Above2
   iaddq $1, %rbp
-  jl Done
-
+  jge One
+  ret
+Above2:
+	mrmovq   (%rdi), %r8	# read val from src...
+	mrmovq  8(%rdi), %r9	# read val from src...
+	rmmovq %r8,    (%rsi)	# ...and store it to dst
+	rmmovq %r9,   8(%rsi)	# ...and store it to dst
+  andq %r8, %r8			# val <= 0?
+  jle A2Val2
+  iaddq $1, %rax			# count++
+A2Val2:
+  andq %r9, %r9			# val <= 0?
+  jle A2Judgement
+  iaddq $1, %rax			# count++
+A2Judgement:
+  iaddq $16, %rdi	  	# src += 2
+  iaddq $16, %rsi	  	# dst += 2
+	subq %rbx, %rbp			# i -= k
+	jge Above2
+  addq %rbp, %rbx     # k = k + i
+  jle Done
 One:
   mrmovq (%rdi), %r10	# read val from src...
   irmovq $1, %rcx
@@ -38,7 +54,6 @@ One:
   andq %r10, %r10			# val <= 0?
   cmovg %rcx, %rax
   ret
-
 Unroll8:
 	mrmovq   (%rdi), %r8	# read val from src...
 	mrmovq  8(%rdi), %r9	# read val from src...
@@ -88,23 +103,23 @@ Val8:
   andq %rcx, %rcx			# val <= 0?
   jle LoopJudgement8
   iaddq $1, %rax			# count++
-
 LoopJudgement8:
   iaddq $64, %rdi		  # src += 8
   iaddq $64, %rsi		  # dst += 8
 	subq %rbx, %rdx			# i -= k
 	jge Unroll8
-
   addq %rbx, %rdx     # i = k + i
-  rrmovq %rdx, %rbp
-  jmp Unroll2Prev
-
+  irmovq $2, %rbx     # set k = 2
+  subq %rbx, %rdx			# i -= k
+  jge Unroll2         # if i >= 0, goto Unroll2
+  iaddq $1, %rdx
+  jge One
+  ret
 Unroll2:
 	mrmovq   (%rdi), %r8	# read val from src...
 	mrmovq  8(%rdi), %r9	# read val from src...
 	rmmovq %r8,    (%rsi)	# ...and store it to dst
 	rmmovq %r9,   8(%rsi)	# ...and store it to dst
-
   andq %r8, %r8			# val <= 0?
   jle U4Val2
   iaddq $1, %rax			# count++
@@ -115,9 +130,9 @@ U4Val2:
 LoopJudgement2:
   iaddq $16, %rdi	  	# src += 2
   iaddq $16, %rsi	  	# dst += 2
-	subq %rbx, %rbp			# i -= k
+	subq %rbx, %rdx			# i -= k
 	jge Unroll2
-  addq %rbp, %rbx     # k = k + i
+  addq %rdx, %rbx     # k = k + i
   jg One
 ##################################################################
 # Do not modify the following section of code
