@@ -24,7 +24,7 @@ Goon4:
   iaddq $4, %rdx			# i += 4
   jge Unroll4         # if i >= 0, goto Unroll4
   iaddq $2, %rdx
-  jge Unroll2
+  jge Unroll23
   iaddq $1, %rdx
   je One
   ret
@@ -116,53 +116,39 @@ LoopJudgement4:
   iaddq $32, %rsi	  	# dst += 4
   irmovq $2, %r13
   subq %r13, %rdx
-#  jg Unroll3
-  jge Unroll2
+  jge Unroll23
+One:
   mrmovq (%rdi), %r10	# read val from src...
   rmmovq %r10, (%rsi)	# ...and store it to dst
   andq %r10, %r10			# val <= 0?
   jle Done
   iaddq $1, %rax			# count++
   ret
-#Unroll3:
-#	mrmovq   (%rdi), %r8	# read val from src...
-#	mrmovq  8(%rdi), %r9	# read val from src...
-#	mrmovq  16(%rdi), %r10	# read val from src...
-#	rmmovq %r8,    (%rsi)	# ...and store it to dst
-#	rmmovq %r9,   8(%rsi)	# ...and store it to dst
-#	rmmovq %r10,  16(%rsi)	# ...and store it to dst
-#  andq %r8, %r8			# val <= 0?
-#  jle U3Val2
-#  iaddq $1, %rax			# count++
-#U3Val2:
-#  andq %r9, %r9			# val <= 0?
-#  jle U3Val3
-#  iaddq $1, %rax			# count++
-#U3Val3:
-#  andq %r10, %r10			# val <= 0?
-#  jle Done
-#  iaddq $1, %rax			# count++
-#  ret
-Unroll2:
-	mrmovq   (%rdi), %r8	# read val from src...
-	mrmovq  8(%rdi), %r9	# read val from src...
-	rmmovq %r8,    (%rsi)	# ...and store it to dst
-	rmmovq %r9,   8(%rsi)	# ...and store it to dst
+Unroll23:
+  mrmovq   (%rdi), %r8	# read val from src...
+  mrmovq  8(%rdi), %r9	# read val from src...
+  rmmovq %r8,    (%rsi)	# ...and store it to dst
+  rmmovq %r9,   8(%rsi)	# ...and store it to dst
+  jg Unroll3
   andq %r8, %r8			# val <= 0?
   jle U2Val2
   iaddq $1, %rax			# count++
 U2Val2:
   andq %r9, %r9			# val <= 0?
-  jle LoopJudgement2
+  jle Done
   iaddq $1, %rax			# count++
-LoopJudgement2:
-  andq %rdx, %rdx    # if(i == 0)
-  je Done
-  iaddq $16, %rdi	  	# src += 2
-  iaddq $16, %rsi	  	# dst += 2
-One:
-  mrmovq (%rdi), %r10	# read val from src...
-  rmmovq %r10, (%rsi)	# ...and store it to dst
+  ret
+Unroll3:
+  mrmovq  16(%rdi), %r10	# read val from src...
+  andq %r8, %r8			# val <= 0?
+  jle U3Val2
+  iaddq $1, %rax			# count++
+U3Val2:
+  rmmovq %r10,  16(%rsi)	# ...and store it to dst
+  andq %r9, %r9			# val <= 0?
+  jle U3Val3
+  iaddq $1, %rax			# count++
+U3Val3:
   andq %r10, %r10			# val <= 0?
   jle Done
   iaddq $1, %rax			# count++
