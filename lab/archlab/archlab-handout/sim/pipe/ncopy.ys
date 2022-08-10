@@ -18,9 +18,9 @@ ncopy:
 # Loop header
   xorq %rax,%rax		  # count = 0
   irmovq $8, %rbx     # set k = 8
+Entry:
   subq %rbx, %rdx     # i -= k
   jge Unroll8         # if i >= 0, goto Unroll8
-Goon4:
   iaddq $4, %rdx			# i += 4
   jge Unroll4         # if i >= 0, goto Unroll4
   iaddq $2, %rdx
@@ -79,11 +79,14 @@ Val8:
 LoopJudgement8:
   iaddq $64, %rdi		  # src += 8
   iaddq $64, %rsi		  # dst += 8
-	subq %rbx, %rdx			# i -= 8
-	jge Unroll8
-  irmovq $-8, %r14
-  xorq %rdx, %r14
-  jne Goon4
+  subq %rbx, %rdx     # i -= k
+  jge Unroll8         # if i >= 0, goto Unroll8
+  iaddq $4, %rdx			# i += 4
+  jge Unroll4         # if i >= 0, goto Unroll4
+  iaddq $2, %rdx
+  jge Unroll23
+  iaddq $1, %rdx
+  je One
   ret
 Unroll4:
 	mrmovq   (%rdi), %r8	# read val from src...
