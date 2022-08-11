@@ -18,11 +18,10 @@ ncopy:
 # Loop header
   xorq %rax,%rax		  # count = 0
   irmovq $8, %rbx     # set k = 8
-Entry:
   subq %rbx, %rdx     # i -= k
   jge Unroll8         # if i >= 0, goto Unroll8
   iaddq $4, %rdx			# i += 4
-  jge Unroll4         # if i >= 0, goto Unroll4
+  jge Unroll4567      # if i >= 0, goto Unroll4
   iaddq $2, %rdx
   jge Unroll23
   iaddq $1, %rdx
@@ -82,13 +81,13 @@ LoopJudgement8:
   subq %rbx, %rdx     # i -= k
   jge Unroll8         # if i >= 0, goto Unroll8
   iaddq $4, %rdx			# i += 4
-  jge Unroll4         # if i >= 0, goto Unroll4
+  jge Unroll4567      # if i >= 0, goto Unroll4
   iaddq $2, %rdx
   jge Unroll23
   iaddq $1, %rdx
   je One
   ret
-Unroll4:
+Unroll4567:
 	mrmovq   (%rdi), %r8	# read val from src...
 	mrmovq  8(%rdi), %r9	# read val from src...
 	mrmovq  16(%rdi), %r10	# read val from src...
@@ -109,16 +108,21 @@ U4Val3:
   jle U4Val4
   iaddq $1, %rax			# count++
 U4Val4:
+  andq %rdx, %rdx
+  jg Unroll567
   andq %r11, %r11			# val <= 0?
-  jle LoopJudgement4
+  jle Done
   iaddq $1, %rax			# count++
-LoopJudgement4:
-  andq %rdx, %rdx    # if(i == 0)
-  je Done
+  ret
+Unroll567:
+  andq %r11, %r11			# val <= 0?
+  jle U5Val4
+  iaddq $1, %rax			# count++
+U5Val4:
   iaddq $32, %rdi	  	# src += 4
   iaddq $32, %rsi	  	# dst += 4
-  irmovq $2, %r13
-  subq %r13, %rdx
+  irmovq $2, %rbp
+  subq %rbp, %rdx
   jge Unroll23
 One:
   mrmovq (%rdi), %r10	# read val from src...
