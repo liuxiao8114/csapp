@@ -16,16 +16,15 @@ ncopy:
 ##################################################################
 # You can modify this portion
 # Loop header
-  xorq %rax,%rax		  # count = 0
-  irmovq $8, %rbx     # set k = 8
-  subq %rbx, %rdx     # i -= k
+  xorq %rax, %rax		  # count = 0
+  iaddq $-8, %rdx     # i -= k
   jge Unroll8         # if i >= 0, goto Unroll8
   iaddq $4, %rdx			# i += 4
   jge Unroll4567      # if i >= 0, goto Unroll4
   iaddq $2, %rdx
   jge Unroll23
-  iaddq $1, %rdx
-  je One
+  iaddq $2, %rdx
+  jg One
   ret
 Unroll8:
 	mrmovq   (%rdi), %r8	# read val from src...
@@ -78,14 +77,14 @@ Val8:
 LoopJudgement8:
   iaddq $64, %rdi		  # src += 8
   iaddq $64, %rsi		  # dst += 8
-  subq %rbx, %rdx     # i -= k
+  iaddq $-8, %rdx     # i -= k
   jge Unroll8         # if i >= 0, goto Unroll8
   iaddq $4, %rdx			# i += 4
   jge Unroll4567      # if i >= 0, goto Unroll4
   iaddq $2, %rdx
   jge Unroll23
-  iaddq $1, %rdx
-  je One
+  iaddq $2, %rdx
+  jg One
   ret
 Unroll4567:
 	mrmovq   (%rdi), %r8	# read val from src...
@@ -121,15 +120,15 @@ Unroll567:
 U5Val4:
   iaddq $32, %rdi	  	# src += 4
   iaddq $32, %rsi	  	# dst += 4
-  irmovq $2, %rbp
-  subq %rbp, %rdx
+  iaddq $-2, %rdx
   jge Unroll23
+  irmovq $1, %rdx
 One:
-  mrmovq (%rdi), %r10	# read val from src...
-  rmmovq %r10, (%rsi)	# ...and store it to dst
-  andq %r10, %r10			# val <= 0?
-  jle Done
-  iaddq $1, %rax			# count++
+  mrmovq   (%rdi), %r8	# read val from src...
+  addq %rax, %rdx       # trick to result++, because %rdx here must equal to "1"
+  rmmovq %r8,    (%rsi)	# ...and store it to dst
+  andq %r8, %r8			# val <= 0?
+  cmovg %rdx, %rax
   ret
 Unroll23:
   mrmovq   (%rdi), %r8	# read val from src...
