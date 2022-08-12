@@ -96,6 +96,7 @@ Unroll4567:
 	rmmovq %r9,   8(%rsi)	# ...and store it to dst
 	rmmovq %r10,  16(%rsi)	# ...and store it to dst
 	rmmovq %r11,  24(%rsi)	# ...and store it to dst
+  jg Unroll567
   andq %r8, %r8			# val <= 0?
   jle U4Val2
   addq %rbx, %rax			# count++
@@ -108,27 +109,58 @@ U4Val3:
   jle U4Val4
   addq %rbx, %rax			# count++
 U4Val4:
-  andq %rdx, %rdx
-  jg Unroll567
   andq %r11, %r11			# val <= 0?
-  jle Done
-  addq %rbx, %rax			# count++
+  jg AddDone
   ret
 Unroll567:
-  andq %r11, %r11			# val <= 0?
+	mrmovq  32(%rdi), %r12	# read val from src...
+  andq %r8, %r8			# val <= 0?
+  jle U5Val2
+  addq %rbx, %rax			# count++
+U5Val2:
+  andq %r9, %r9			# val <= 0?
+  jle U5Val3
+  addq %rbx, %rax			# count++
+U5Val3:
+  andq %r10, %r10			# val <= 0?
   jle U5Val4
   addq %rbx, %rax			# count++
 U5Val4:
-  iaddq $32, %rdi	  	# src += 4
-  iaddq $32, %rsi	  	# dst += 4
+  andq %r11, %r11			# val <= 0?
+  jle U5Val5
+  addq %rbx, %rax			# count++
+U5Val5:
+  rmmovq %r12,  32(%rsi)	# ...and store it to dst
   iaddq $-2, %rdx
-  jge Unroll23
-One:
-  mrmovq   (%rdi), %r8	# read val from src...
-  addq %rax, %rbx       # trick to result++, because %rdx here must equal to "1"
-  rmmovq %r8,    (%rsi)	# ...and store it to dst
-  andq %r8, %r8			# val <= 0?
-  cmovg %rbx, %rax
+  jge Unroll67
+  andq %r12, %r12			# val <= 0?
+  jg AddDone
+  ret
+Unroll67:
+  mrmovq  40(%rdi), %r13	# read val from src...
+  jg Unroll7
+  andq %r12, %r12			# val <= 0?
+  jle U6Val6
+  addq %rbx, %rax			# count++
+U6Val6:
+  rmmovq %r13,  40(%rsi)	# ...and store it to dst
+  andq %r13, %r13			# val <= 0?
+  jg AddDone
+  ret
+Unroll7:
+  mrmovq  48(%rdi), %r14	# read val from src...
+  rmmovq %r13,  40(%rsi)	# ...and store it to dst
+  rmmovq %r14,  48(%rsi)	# ...and store it to dst
+  andq %r12, %r12			# val <= 0?
+  jle U7Val6
+  addq %rbx, %rax			# count++
+U7Val6:
+  andq %r13, %r13			# val <= 0?
+  jle U7Val7
+  addq %rbx, %rax			# count++
+U7Val7:
+  andq %r14, %r14			# val <= 0?
+  jg AddDone
   ret
 Unroll23:
   mrmovq   (%rdi), %r8	# read val from src...
@@ -141,8 +173,7 @@ Unroll23:
   addq %rbx, %rax			# count++
 U2Val2:
   andq %r9, %r9			# val <= 0?
-  jle Done
-  addq %rbx, %rax			# count++
+  jg AddDone
   ret
 Unroll3:
   mrmovq  16(%rdi), %r10	# read val from src...
@@ -156,7 +187,16 @@ U3Val2:
   addq %rbx, %rax			# count++
 U3Val3:
   andq %r10, %r10			# val <= 0?
-  jle Done
+  jg AddDone
+  ret
+One:
+  mrmovq   (%rdi), %r8	# read val from src...
+  addq %rax, %rbx       # trick to result++, because %rdx here must equal to "1"
+  rmmovq %r8,    (%rsi)	# ...and store it to dst
+  andq %r8, %r8			# val <= 0?
+  cmovg %rbx, %rax
+  ret
+AddDone:
   addq %rbx, %rax			# count++
 ##################################################################
 # Do not modify the following section of code
