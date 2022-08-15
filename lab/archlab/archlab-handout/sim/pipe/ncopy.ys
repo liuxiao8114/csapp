@@ -16,7 +16,6 @@ ncopy:
 ##################################################################
 # You can modify this portion
 # Loop header
-  xorq %rax, %rax		  # count = 0
   irmovq $1, %rbx
   iaddq $-8, %rdx     # i -= k
   jge Unroll8         # if i >= 0, goto Unroll8
