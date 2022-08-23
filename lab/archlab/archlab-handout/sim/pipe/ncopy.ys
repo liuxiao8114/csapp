@@ -16,18 +16,16 @@ ncopy:
 ##################################################################
 # You can modify this portion
 # Loop header
-  xorq %rax,%rax		  # count = 0
-  irmovq $1, %rcx
-
-  irmovq $8, %rbx     # set k
-  rrmovq %rdx, %rbp   # i = len
-  subq %rbx, %rbp     # i -= k
-  jge Unroll8         # if so => start Unroll1
-
-  andq %rdx, %rdx
-  jg NormalLoop
+  irmovq $1, %rbx
+  iaddq $-8, %rdx     # i -= k
+  jge Unroll8         # if i >= 0, goto Unroll8
+  iaddq $4, %rdx			# i += 4
+  jge Unroll4567      # if i >= 0, goto Unroll4
+  iaddq $2, %rdx
+  jge Unroll23
+  addq %rbx, %rdx
+  je One
   ret
-
 Unroll8:
 	mrmovq   (%rdi), %r8	# read val from src...
 	mrmovq  8(%rdi), %r9	# read val from src...
@@ -36,6 +34,7 @@ Unroll8:
 	mrmovq 32(%rdi), %r12	# read val from src...
 	mrmovq 40(%rdi), %r13	# read val from src...
 	mrmovq 48(%rdi), %r14	# read val from src...
+	mrmovq 56(%rdi), %rcx	# read val from src...
 	rmmovq %r8,   (%rsi)	# ...and store it to dst
 	rmmovq %r9,  8(%rsi)	# ...and store it to dst
 	rmmovq %r10, 16(%rsi)	# ...and store it to dst
@@ -43,112 +42,161 @@ Unroll8:
 	rmmovq %r12, 32(%rsi)	# ...and store it to dst
 	rmmovq %r13, 40(%rsi)	# ...and store it to dst
 	rmmovq %r14, 48(%rsi)	# ...and store it to dst
-
-	andq %r8, %r8			# val <= 0?
+	rmmovq %rcx, 56(%rsi)	# ...and store it to dst
+	andq %r8, %r8		  	# val <= 0?
   jle Val2
-  addq %rcx, %rax			# count++
+  addq %rbx, %rax			# count++
 Val2:
-  andq %r9, %r9			# val <= 0?
+  andq %r9, %r9			  # val <= 0?
   jle Val3
-  addq %rcx, %rax			# count++
+  addq %rbx, %rax			# count++
 Val3:
   andq %r10, %r10			# val <= 0?
   jle Val4
-  addq %rcx, %rax			# count++
+  addq %rbx, %rax			# count++
 Val4:
   andq %r11, %r11			# val <= 0?
   jle Val5
-  addq %rcx, %rax			# count++
+  addq %rbx, %rax			# count++
 Val5:
   andq %r12, %r12			# val <= 0?
   jle Val6
-  addq %rcx, %rax			# count++
+  addq %rbx, %rax			# count++
 Val6:
   andq %r13, %r13			# val <= 0?
   jle Val7
-  addq %rcx, %rax			# count++
+  addq %rbx, %rax			# count++
 Val7:
   andq %r14, %r14			# val <= 0?
   jle Val8
-  addq %rcx, %rax			# count++
+  addq %rbx, %rax			# count++
 Val8:
-  mrmovq 56(%rdi), %r8	# read val from src...
-  iaddq $64, %rdi			# src += 8
-  rmmovq %r8, 56(%rsi)	# ...and store it to dst
-  iaddq $64, %rsi			# dst += 8
-  andq %r8, %r8			# val <= 0?
+  andq %rcx, %rcx			# val <= 0?
   jle LoopJudgement8
-  addq %rcx, %rax			# count++
-
+  addq %rbx, %rax			# count++
 LoopJudgement8:
-	subq %rbx, %rbp			# i -= k
-	jge Unroll8
-  subq %rcx, %rbp     # i = i - 1
-  addq %rbp, %rbx     # k = k + i
-  jl Done
-  irmovq $3, %rdx     # reset %rdx = 3
-  rrmovq %rbx, %rbp   # i = len
-  subq %rdx, %rbp     # i -= 3
-  cmovge %rdx, %rbx   # set k = 3
-  jge Unroll3         # if so => start Unroll3
-  jmp Loop2
-
-Unroll3:
+  iaddq $64, %rdi		  # src += 8
+  iaddq $64, %rsi		  # dst += 8
+  iaddq $-8, %rdx     # i -= k
+  jge Unroll8         # if i >= 0, goto Unroll8
+  iaddq $4, %rdx			# i += 4
+  jge Unroll4567      # if i >= 0, goto Unroll4
+  iaddq $2, %rdx
+  jge Unroll23
+  addq %rbx, %rdx
+  je One
+  ret
+Unroll4567:
 	mrmovq   (%rdi), %r8	# read val from src...
 	mrmovq  8(%rdi), %r9	# read val from src...
-	mrmovq 16(%rdi), %r10	# read val from src...
+	mrmovq  16(%rdi), %r10	# read val from src...
+	mrmovq  24(%rdi), %r11	# read val from src...
 	rmmovq %r8,    (%rsi)	# ...and store it to dst
 	rmmovq %r9,   8(%rsi)	# ...and store it to dst
-	rmmovq %r10, 16(%rsi)	# ...and store it to dst
-  iaddq $24, %rdi			# src += 3
-  iaddq $24, %rsi			# dst += 3
-
+	rmmovq %r10,  16(%rsi)	# ...and store it to dst
+	rmmovq %r11,  24(%rsi)	# ...and store it to dst
+  jg Unroll567
+  andq %r8, %r8			# val <= 0?
+  jle U4Val2
+  addq %rbx, %rax			# count++
+U4Val2:
+  andq %r9, %r9			# val <= 0?
+  jle U4Val3
+  addq %rbx, %rax			# count++
+U4Val3:
+  andq %r10, %r10			# val <= 0?
+  jle U4Val4
+  addq %rbx, %rax			# count++
+U4Val4:
+  andq %r11, %r11			# val <= 0?
+  jg AddDone
+  ret
+Unroll567:
+	mrmovq  32(%rdi), %r12	# read val from src...
+  andq %r8, %r8			# val <= 0?
+  jle U5Val2
+  addq %rbx, %rax			# count++
+U5Val2:
+  andq %r9, %r9			# val <= 0?
+  jle U5Val3
+  addq %rbx, %rax			# count++
+U5Val3:
+  andq %r10, %r10			# val <= 0?
+  jle U5Val4
+  addq %rbx, %rax			# count++
+U5Val4:
+  andq %r11, %r11			# val <= 0?
+  jle U5Val5
+  addq %rbx, %rax			# count++
+U5Val5:
+  rmmovq %r12,  32(%rsi)	# ...and store it to dst
+  iaddq $-2, %rdx
+  jge Unroll67
+  andq %r12, %r12			# val <= 0?
+  jg AddDone
+  ret
+Unroll67:
+  mrmovq  40(%rdi), %r13	# read val from src...
+  jg Unroll7
+  andq %r12, %r12			# val <= 0?
+  jle U6Val6
+  addq %rbx, %rax			# count++
+U6Val6:
+  rmmovq %r13,  40(%rsi)	# ...and store it to dst
+  andq %r13, %r13			# val <= 0?
+  jg AddDone
+  ret
+Unroll7:
+  mrmovq  48(%rdi), %r14	# read val from src...
+  rmmovq %r13,  40(%rsi)	# ...and store it to dst
+  rmmovq %r14,  48(%rsi)	# ...and store it to dst
+  andq %r12, %r12			# val <= 0?
+  jle U7Val6
+  addq %rbx, %rax			# count++
+U7Val6:
+  andq %r13, %r13			# val <= 0?
+  jle U7Val7
+  addq %rbx, %rax			# count++
+U7Val7:
+  andq %r14, %r14			# val <= 0?
+  jg AddDone
+  ret
+Unroll23:
+  mrmovq   (%rdi), %r8	# read val from src...
+  mrmovq  8(%rdi), %r9	# read val from src...
+  rmmovq %r8,    (%rsi)	# ...and store it to dst
+  rmmovq %r9,   8(%rsi)	# ...and store it to dst
+  jg Unroll3
+  andq %r8, %r8			# val <= 0?
+  jle U2Val2
+  addq %rbx, %rax			# count++
+U2Val2:
+  andq %r9, %r9			# val <= 0?
+  jg AddDone
+  ret
+Unroll3:
+  mrmovq  16(%rdi), %r10	# read val from src...
   andq %r8, %r8			# val <= 0?
   jle U3Val2
-  addq %rcx, %rax			# count++
+  addq %rbx, %rax			# count++
 U3Val2:
+  rmmovq %r10,  16(%rsi)	# ...and store it to dst
   andq %r9, %r9			# val <= 0?
   jle U3Val3
-  addq %rcx, %rax			# count++
+  addq %rbx, %rax			# count++
 U3Val3:
   andq %r10, %r10			# val <= 0?
-  jle LoopJudgement3
-  addq %rcx, %rax			# count++
-
-LoopJudgement3:
-	subq %rbx, %rbp			# i -= k
-	jge Unroll3
-  subq %rcx, %rbp     # i = i - 1
-  addq %rbp, %rbx     # k = k + i
-  jge Loop2
+  jg AddDone
   ret
-
-Loop2:
-  mrmovq (%rdi), %r10	# read val from src...
-  iaddq $8, %rdi			# src++
-  rmmovq %r10, (%rsi)	# ...and store it to dst
-  iaddq $8, %rsi			# dst++
-  andq %r10, %r10			# val <= 0?
-  jle Loop2Judgement
-  addq %rcx, %rax			# count++
-
-Loop2Judgement:
-  subq %rcx, %rbx     # k--
-  jge Loop2           #
+One:
+  mrmovq   (%rdi), %r8	# read val from src...
+  addq %rax, %rbx       # trick to result++, because %rdx here must equal to "1"
+  rmmovq %r8,    (%rsi)	# ...and store it to dst
+  andq %r8, %r8			# val <= 0?
+  cmovg %rbx, %rax
   ret
-
-NormalLoop:
-  mrmovq (%rdi), %r10	# read val from src...
-  iaddq $8, %rdi			# src++
-  rmmovq %r10, (%rsi)	# ...and store it to dst
-  iaddq $8, %rsi			# dst++
-  andq %r10, %r10			# val <= 0?
-  jle NormalLoopJudgement
-  addq %rcx, %rax			# count++
-
-NormalLoopJudgement:
-  subq %rcx, %rdx     # k--
-  jg NormalLoop
+AddDone:
+  addq %rbx, %rax			# count++
 ##################################################################
 # Do not modify the following section of code
 # Function epilogue.
