@@ -21,6 +21,9 @@ tracegen: tracegen.c trans.o cachelab.c
 trans.o: trans.c
 	$(CC) $(CFLAGS) -O0 -c trans.c
 
+testc: testc.c
+	$(CC) -g -Wall -std=c99 -m64 -o testc testc.c -lm
+
 #
 # Clean the src dirctory
 #
