@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
   }
 
   s = e = b = 1;
+  hit = miss = evict = 0;
 
   for(++argv, --argc; argc > 0 && **argv == '-'; argc -= 2, argv += 2)
     while((c = *++*argv))
@@ -58,24 +59,33 @@ int main(int argc, char* argv[]) {
           filename = *(argv + 1);
           break;
         default:
-          printf("fuck this: %c\n", c);
-          return 0;
+          printf("[Error]: Unknown option: -%c\n", c);
+          return -1;
       }
 
   printf("S: %d, E: %d, B: %d\n", 1 << s, e, 1 << b);
   // char (*cache)[b] = malloc((1 << s) * e);
-  char **cache = malloc(1 << s);
+  int i, memoryHex;
+  struct line {
+    int tag;
+    int visits;
+  } *lines;
+  int **cache = calloc(1 << s, e * sizeof(struct line));
 
   fp = fopen(filename, "r");
-  hit = miss = evict = 0;
+
+  if(fp == NULL) {
+    printf("[Error]: File not found: %s\n", filename);
+    return -1;
+  }
 
   while((c = fgetc(fp)) != EOF) {
     if(c == I)
       while((c = fgetc(fp)) != '\n' || c != EOF)
         ;
     else if(c == S || c == M || c == L) {
-      int i, memoryHex;
-      fgetc(fp); // skip the space
+      // skip the space
+      fgetc(fp);
 
       for(i = 0, c = fgetc(fp); c != EOF && c != ','; c = fgetc(fp))
         memory[i++] = c;
@@ -110,10 +120,31 @@ int main(int argc, char* argv[]) {
       // if(setIndex >= (1 << s))
       //   setIndex /= 1 << s;
 
-      int index = tagIndex * setIndex + setIndex;
+      if((lines = cache[setIndex]) != NULL) {
+        for(i = 0; lines != NULL; lines++, i++) {
+          if(*lines.tag == tagIndex) {
+            hit++;
+            break;
+          }
+        }
 
-      if(cache[setIndex])
-        hit++;
+        // if rooms left, cold miss line
+        if(lines == NULL && i < e) {
+          miss++;
+          struct line l;
+
+          l.tag = tagIndex;
+          l.visit = 0;
+
+          *lines++ = line;
+        }
+
+        // otherwise, evict with LRU
+        else {
+          evict++;
+        }
+      }
+      // cold miss set
       else {
         miss++;
       }
