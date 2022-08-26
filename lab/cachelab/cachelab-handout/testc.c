@@ -49,16 +49,32 @@ int main() {
   printf("100: 0x%d\n", atoh("100"));
   */
 
-  /*
+  /* malloc
+  // buffer overflow
   char **s = malloc(32);
   testMalloc(*s++);
   testMalloc(*s);
 
   printf("s0: %s, s1: %s\n", *s, *(s+1));
   return 1;
-  */
 
-  // char *s = calloc(4, sizeof(char));
+  // calloc and malloc
+  int *sc = calloc(4, sizeof(int));
+  int *sm = malloc(4* sizeof(int));
+  if(sc)
+    printf("sc: %d\n", *sc); // print 0
+  if(sm)
+    printf("sm: %d\n", *sm); // print 0
+
+  if(sc + 1)
+    printf("sc: %d\n", *(sc+1)); // print 0
+  if(sm + 1)
+    printf("sm: %d\n", *(sm+1)); // print 0
+  */
+  printf("%d\n", ~(-1 << 1));
+  printf("%d\n", ~(-1 << 3));
+  printf("%d\n", ~(-1 << 5));
+
   /*
   // sizeof struct
   struct char2 { char id; char counter; };
@@ -81,7 +97,7 @@ int main() {
 
   */
 
-  /*
+  /* struct
   struct line {
     int id;
     int counter;
@@ -102,4 +118,21 @@ int main() {
   /*
 
   */
+
+  /*
+  ttt   ss
+  000   00
+  000   01
+  000   10
+  000   11
+  001   00
+  ... 32 counts
+
+  ttt   ss
+        00  01  10  11
+  000
+  001
+  010
+  */
+
 }

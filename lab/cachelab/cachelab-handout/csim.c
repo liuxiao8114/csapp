@@ -6,7 +6,7 @@
 #define L 'L'
 #define M 'M'
 #define S 'S'
-#define ADDR_LEN 8
+#define ADDR_LEN 16
 
 int atoh(char *s) {
   int ret = 0;
@@ -34,6 +34,8 @@ int main(int argc, char* argv[]) {
   FILE* fp;
   int hit, miss, evict;
   char memory[ADDR_LEN];
+  char isDebug = 0;
+  int step = 2;
 
   if(argc <= 1) {
     printf("no trace.\n");
@@ -43,35 +45,35 @@ int main(int argc, char* argv[]) {
   s = e = b = 1;
   hit = miss = evict = 0;
 
-  for(++argv, --argc; argc > 0 && **argv == '-'; argc -= 2, argv += 2)
+  for(++argv, --argc; argc > 0 && **argv == '-'; argc -= step, argv += step)
     while((c = *++*argv))
       switch (c) {
         case 's':
           s = atoi(*(argv + 1));
+          step = 2;
           break;
         case 'E':
           e = atoi(*(argv + 1));
+          step = 2;
           break;
         case 'b':
           b = atoi(*(argv + 1));
+          step = 2;
           break;
         case 't':
           filename = *(argv + 1);
+          step = 2;
+          break;
+        case 'v':
+          isDebug = 1;
+          step = 1;
           break;
         default:
           printf("[Error]: Unknown option: -%c\n", c);
           return -1;
       }
 
-  printf("S: %d, E: %d, B: %d\n", 1 << s, e, 1 << b);
-  // char (*cache)[b] = malloc((1 << s) * e);
-  int i, memoryHex;
-  struct line {
-    int tag;
-    int visits;
-  } *lines;
-  int **cache = calloc(1 << s, e * sizeof(struct line));
-
+  // printf("S: %d, E: %d, B: %d\n", 1 << s, e, 1 << b);
   fp = fopen(filename, "r");
 
   if(fp == NULL) {
@@ -79,13 +81,24 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
+  int i, op, opIndex, memoryHex;
+  struct line {
+    int tag;
+    int visitCounter;
+    int lastVisit;
+    // set blocks here if necessary.
+  } *lines, *firstline, **cache;
+
+  cache = calloc(1 << s, e * sizeof(struct line));
+  opIndex = 0;
+
   while((c = fgetc(fp)) != EOF) {
     if(c == I)
-      while((c = fgetc(fp)) != '\n' || c != EOF)
+      while((c = fgetc(fp)) != '\n' && c != EOF)
         ;
     else if(c == S || c == M || c == L) {
-      // skip the space
-      fgetc(fp);
+      fgetc(fp);  // skip the space
+      op = c;     // save operation
 
       for(i = 0, c = fgetc(fp); c != EOF && c != ','; c = fgetc(fp))
         memory[i++] = c;
@@ -93,66 +106,86 @@ int main(int argc, char* argv[]) {
       memory[i] = '\0';
       memoryHex = atoh(memory);
 
-      /*
-      ttt   ss
-      000   00
-      000   01
-      000   10
-      000   11
-      001   00
-      ... 32 counts
+      int tag = memoryHex >> (s + b);
+      int setIndex = (~(-1 << (s + b)) & memoryHex) >> b;
+      // int offset = memoryHex & ~(-1 << b);
 
-      ttt   ss
-            00  01  10  11
-      000
-      001
-      010
+      if((firstline = lines = cache[setIndex])) {
+        for(; lines->visitCounter && lines-firstline < e; lines++) {
+          if(lines->tag == tag) {
+            if(isDebug) printf("hit");
 
-      // convert to two-direction array.
-      int tagIndex = memoryHex >> (s + b);
-      int setIndex = (~(~0 << (s + b)) & memoryHex) >> b;
-      int index = tagIndex * setIndex + setIndex;
-      */
-
-      int tagIndex = memoryHex >> (s + b);
-      int setIndex = ((~(~0 << (s + b)) & memoryHex) >> b);
-
-      // if(setIndex >= (1 << s))
-      //   setIndex /= 1 << s;
-
-      if((lines = cache[setIndex]) != NULL) {
-        for(i = 0; lines != NULL; lines++, i++) {
-          if(*lines.tag == tagIndex) {
             hit++;
+            if(op == M) {
+              hit++;
+              if(isDebug) printf(" hit");
+            }
+
+            if(isDebug) printf("\n");
+            lines->visitCounter++;
+            lines->lastVisit = opIndex++;
             break;
           }
         }
 
-        // if rooms left, cold miss line
-        if(lines == NULL && i < e) {
+        // if cache miss
+        if(!lines->visitCounter) {
+          if(isDebug) printf("miss");
           miss++;
+
           struct line l;
+          l.tag = tag;
+          l.visitCounter = 1;
+          l.lastVisit = opIndex++;
 
-          l.tag = tagIndex;
-          l.visit = 0;
+          // if rooms left, cold miss
+          if(lines - firstline < e)
+            *lines = l;
+          // otherwise, evict with LRU(Least Recently Used)
+          else {
+            struct line *candicate = --lines;
+            for(; lines >= firstline; lines--)
+              if(lines->lastVisit < candicate->lastVisit)
+                candicate = lines;
+            /*
+            // LFU(Least Frequently Used) version:
+            for(; lines != firstline; lines--)
+              if(lines->visitCounter < candicate->visitCounter)
+                candicate = lines;
+            */
 
-          *lines++ = line;
+            *candicate = l;
+            evict++;
+
+            if(isDebug) printf(" eviction(set%d line%ld)", setIndex, candicate-firstline);
+          }
+
+          if(op == M) {
+            hit++;
+            if(isDebug) printf(" hit");
+          }
+
+          if(isDebug) printf("\n");
         }
-
-        // otherwise, evict with LRU
-        else {
-          evict++;
-        }
-      }
-      // cold miss set
-      else {
+      } else {
+        if(isDebug) printf("miss(init set%d)", setIndex);
         miss++;
+
+        if(op == M) {
+          hit++;
+          if(isDebug) printf(" hit");
+        }
+
+        lines = malloc(e * sizeof(struct line));
+        struct line l;
+        l.tag = tag;
+        l.visitCounter = 1;
+        l.lastVisit = opIndex++;
+        *lines = l;
+        cache[setIndex] = lines;
+
+        if(isDebug) printf("\n");
       }
-
-      printf("memory: %s, memoryHex: %d\n", memory, memoryHex);
-      printf("memoryHex: %d, tag: %d, set: %d, cache: %s\n",
-        memoryHex, tagIndex, setIndex, cache[tagIndex * setIndex]);
-
     }
   }
 

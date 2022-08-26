@@ -22,7 +22,7 @@ trans.o: trans.c
 	$(CC) $(CFLAGS) -O0 -c trans.c
 
 testc: testc.c
-	$(CC) -g -Wall -std=c99 -m64 -o testc testc.c -lm
+	$(CC) -O0 -g -Wall -std=c99 -m64 -o testc testc.c -lm
 
 #
 # Clean the src dirctory

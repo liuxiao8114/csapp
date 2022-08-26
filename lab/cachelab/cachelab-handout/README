@@ -1,4 +1,4 @@
-This is the handout directory for the CS:APP Cache Lab. 
+This is the handout directory for the CS:APP Cache Lab.
 
 ************************
 Running the autograders:
@@ -16,7 +16,7 @@ Check the correctness and performance of your transpose functions:
     linux> ./test-trans -M 61 -N 67
 
 Check everything at once (this is the program that your instructor runs):
-    linux> ./driver.py    
+    linux> ./driver.py
 
 ******
 Files:
@@ -37,3 +37,28 @@ test-csim*   Tests your cache simulator
 test-trans.c Tests your transpose function
 tracegen.c   Helper program used by test-trans
 traces/      Trace files used by test-csim.c
+
+
+./csim-ref -v -s 1 -E 1 -b 1 -t traces/yi2.trace
+./csim-ref -v -s 4 -E 2 -b 4 -t traces/yi.trace
+./csim-ref -v -s 2 -E 1 -b 4 -t traces/dave.trace
+./csim-ref -v -s 2 -E 1 -b 3 -t traces/trans.trace
+./csim-ref -v -s 2 -E 2 -b 3 -t traces/trans.trace
+./csim-ref -s 2 -E 4 -b 3 -t traces/trans.trace
+./csim-ref -s 5 -E 1 -b 5 -t traces/trans.trace
+./csim-ref -s 5 -E 1 -b 5 -t traces/long.trace
+
+./csim -s 1 -E 1 -b 1 -t traces/yi2.trace
+./csim -s 4 -E 2 -b 4 -t traces/yi.trace
+./csim -s 2 -E 1 -b 4 -t traces/dave.trace
+./csim -s 2 -E 1 -b 3 -t traces/trans.trace
+./csim -s 2 -E 2 -b 3 -t traces/trans.trace
+./csim -s 2 -E 4 -b 3 -t traces/trans.trace
+./csim -s 5 -E 1 -b 5 -t traces/trans.trace
+./csim -s 5 -E 1 -b 5 -t traces/long.trace
+
+16, 2, 16
+4, 2, 4
+      0 1
+0000
+1111
