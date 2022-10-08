@@ -321,7 +321,7 @@ void do_bgfg(char **argv)
   } else {
     printf("Unknown op:[%s] in do_bgfg.\n", *argv);
   }
-  
+
   return;
 }
 
@@ -332,7 +332,7 @@ void waitfg(pid_t pid)
 {
   if(pid > 0)
     while(fgpid(jobs) == pid)
-      ;
+      sigsuspend(&prev);
 
   if(verbose)
     printf("waitfg: Process (%d) no longer the fg process\n", pid);
