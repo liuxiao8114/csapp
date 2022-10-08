@@ -310,18 +310,18 @@ void do_bgfg(char **argv)
 
   struct job_t *job = getjobjid(jobs, jid);
 
-  if(!strcmp(*argv, "bg"))
+  if(!strcmp(*argv, "bg")) {
     job->state = BG;
-  else if(!strcmp(*argv, "fg"))
+    kill(job->pid, SIGCONT);
+    printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
+  } else if(!strcmp(*argv, "fg")) {
     job->state = FG;
-  else {
+    kill(job->pid, SIGCONT);
+    waitfg(job->pid);
+  } else {
     printf("Unknown op:[%s] in do_bgfg.\n", *argv);
-    return;
   }
-
-  kill(job->pid, SIGCONT);
-  printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
-
+  
   return;
 }
 
