@@ -312,11 +312,11 @@ void do_bgfg(char **argv)
 
   if(!strcmp(*argv, "bg")) {
     job->state = BG;
-    kill(job->pid, SIGCONT);
+    kill(-job->pid, SIGCONT);
     printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
   } else if(!strcmp(*argv, "fg")) {
     job->state = FG;
-    kill(job->pid, SIGCONT);
+    kill(-job->pid, SIGCONT);
     waitfg(job->pid);
   } else {
     printf("Unknown op:[%s] in do_bgfg.\n", *argv);
