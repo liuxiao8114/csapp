@@ -73,6 +73,9 @@ Symbol resolution for global symbols is tricker because:
 2. multiple object modules might define global symbols with the same name.
 
 ### 7.6.1 How Linkers Resolve Duplicate Symbol Names
+In some cases the linker allows multiple modules to define global symbols with the same name.
+when the complier is translating some module and encounter a weak global symbol, say, x, it does not know if other modules also define x, and if so, it cannot predict which of the multiple instances of the x
+
 + Mulitple strong symbols with the same name are not allowed.
 
 ```c
@@ -105,14 +108,18 @@ On the other hand, if x is initialized to zero, then it is a strong symbol(and t
 
 Related functions can be compiled into separate object modules and then packaged in a single static library file.
 
+The -static argument tells the complier driver that the linker should build a fully linked executable object file that can be loaded into memory and run without any further linking at load time.
+
 ### 7.6.3 How Linkers Use Static Libraries to Resolve References
+During the symbol resolution phase, the linker scans the relocatable object files and archives left to right in the same sequential order that they appear on the compiler driver’s command line. (The driver automatically translates any .c files on the command line into .o files.)
+
 a set E of relocatable object files that will be merged to form the executable
 a set U of unresolved symbols
 a set D pf symbols that have been defined in previous input files
 
 ## 7.7 Relocation
 1. Relocating sections and symbol definitions.
-  The linker then assigns run-time memory addresses to the new aggregate sections
+   The linker then assigns run-time memory addresses to the new aggregate sections
 2. Relocating symbol references within sections.
 
 ### 7.7.1 Relocation Entries
