@@ -30,7 +30,66 @@ void testMalloc(char *s) {
   }
 }
 
+int is_transpose(int M, int N, int A[N][M], int B[M][N])
+{
+    int i, j;
+
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < M; ++j) {
+            if (A[i][j] != B[j][i]) {
+                printf("A[%d][%d]=%d not equals B[%d][%d]=%d\n", i, j, A[i][j], j, i, B[j][i]);
+                return 0;
+            }
+        }
+    }
+    
+    return 1;
+}
+
+void trans(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j;
+
+  for (i = 0; i < N; i++)
+    for (j = 0; j < M; j++)
+      B[j][i] = A[i][j];
+}
+
+void transpose_32_64(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j, k, ii, jj;
+  int bsize = 5;
+  int en = bsize * (M / bsize); // assume M == N
+
+  for(ii = 0; ii < en; ii += bsize)
+    for(jj = 0; jj < en; jj += bsize)
+      for(i = ii; i < ii + bsize; i++)
+        for(j = jj; j < jj + bsize; j++) {
+          printf("b[%d][%d]=a[%d][%d]=%d\n", j, i, i, j, A[i][j]);
+          B[j][i] = A[i][j];
+        }
+
+  for(i = ii - bsize; i < M; i++)
+    for(j = jj - bsize; j < N; j++) {
+      printf("b[%d][%d]=a[%d][%d]=%d\n", j, i, i, j, A[i][j]);
+      B[j][i] = A[i][j];
+    }
+}
+
 int main() {
+  int m = 8;
+  int n = 8;
+  int a[n][m], b[m][n];
+
+  int i, j;
+  for(i = 0; i < n; i++)
+    for(j = 0; j < m; j++)
+      a[i][j] = i * n + j;
+
+  transpose_32_64(m, n, a, b);
+  // trans(m, n, a, b);
+
+  // for(j = 0; j < m; j++)
+  //   for(i = 0; i < n; i++)
+  //     printf("b[%d][%d]=%d\n", j, i, b[j][i]);
   /*
   // array and pointer set value.
   char c[10];
@@ -71,9 +130,9 @@ int main() {
   if(sm + 1)
     printf("sm: %d\n", *(sm+1)); // print 0
   */
-  printf("%d\n", ~(-1 << 1));
-  printf("%d\n", ~(-1 << 3));
-  printf("%d\n", ~(-1 << 5));
+  // printf("%d\n", ~(-1 << 1));
+  // printf("%d\n", ~(-1 << 3));
+  // printf("%d\n", ~(-1 << 5));
 
   /*
   // sizeof struct

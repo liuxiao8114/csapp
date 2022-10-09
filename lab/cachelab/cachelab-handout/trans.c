@@ -24,35 +24,21 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
   // s: 5, E: 1, b: 5
   // ./test-trans -M 32 -N 32
-  int i, j, tmp;
-
-  for (i = 0; i < N; i++) {
-    for (j = 0; j < M; j++) {
-      /*
-        set0: a[00][00] - a[00][07]
-        set1: a[00][08] - a[00][15]
-        set2: a[00][16] - a[00][23]
-        set3: a[00][24] - a[00][31]
-        set4: a[01][00] - a[01][07]
-        set5: a[01][08] - a[01][15]
-        set6: a[01][16] - a[01][23]
-        set7: a[01][24] - a[01][31]
-        ...
-        b00 = a00
-        b10 = a01
-        b20 = a02
-        b30 = a03
-        ...
-      */
-      tmp = A[i][j];
-      B[j][i] = tmp;
-    }
-  }
+  if(M == N && (M == 32 || M == 64))
+    transpose_32_64(M, N, A, B);
 }
 
 char transpose_32_64[] = "Transpose for 32 and 64";
 void transpose_32_64(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j, k, ii, jj;
+  int bsize = 5;
+  int en = bsize * (M / bsize); // assume M == N
 
+  for(ii = 0; ii < en; ii += bsize)
+    for(jj = 0; jj < en; jj += bsize)
+      for(i = ii; i < ii + bsize; i++)
+        for(j = jj; j < jj + bsize; j++)
+          B[j][i] = A[i][j];
 }
 
 /*

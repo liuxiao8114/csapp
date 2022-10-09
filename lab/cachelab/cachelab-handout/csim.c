@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
           }
         }
 
-        // if cache miss
+        // Line Replacement on Misses in Set Associative Caches
         if(!lines->visitCounter) {
           if(isDebug) printf("miss");
           miss++;
@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
           l.visitCounter = 1;
           l.lastVisit = opIndex++;
 
-          // if rooms left, cold miss
+          // if there is an empty line, then it would be a good candidate
           if(lines - firstline < e)
             *lines = l;
           // otherwise, evict with LRU(Least Recently Used)
@@ -167,7 +167,9 @@ int main(int argc, char* argv[]) {
 
           if(isDebug) printf("\n");
         }
-      } else {
+      }
+      // Not Init Set(cold miss)
+      else {
         if(isDebug) printf("miss(init set%d)", setIndex);
         miss++;
 
