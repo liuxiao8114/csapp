@@ -13,9 +13,9 @@ static unsigned cyc_lo = 0;
 void access_counter(unsigned *hi, unsigned *lo)
 {
   /* Get cycle counter */
-  asm("rdtsc; movl %%edx,%0; movl %%eax,%1" 
+  asm("rdtsc; movl %%edx,%0; movl %%eax,%1"
       : "=r" (*hi), "=r" (*lo)
-      : /* No input */ 
+      : /* No input */
       : "%edx", "%eax");
 }
 
@@ -67,26 +67,26 @@ double core_mhz(int verbose) {
     cpu_ghz = 0.0;
 
     if (!fp) {
-	fprintf(stderr, "Can't open /proc/cpuinfo to get clock information\n");
-	cpu_ghz = 1.0;
-	return cpu_ghz * 1000.0;
+    	fprintf(stderr, "Can't open /proc/cpuinfo to get clock information\n");
+    	cpu_ghz = 1.0;
+    	return cpu_ghz * 1000.0;
     }
     while (fgets(buf, MAXBUF, fp)) {
-	if (strstr(buf, "cpu MHz")) {
-	    double cpu_mhz = 0.0;
-	    sscanf(buf, "cpu MHz\t: %lf", &cpu_mhz);
-	    cpu_ghz = cpu_mhz / 1000.0;
-	    break;
-	}
+    	if (strstr(buf, "cpu MHz")) {
+    	    double cpu_mhz = 0.0;
+    	    sscanf(buf, "cpu MHz\t: %lf", &cpu_mhz);
+    	    cpu_ghz = cpu_mhz / 1000.0;
+    	    break;
+    	}
     }
     fclose(fp);
     if (cpu_ghz == 0.0) {
-	fprintf(stderr, "Can't open /proc/cpuinfo to get clock information\n");
-	cpu_ghz = 1.0;
-	return cpu_ghz * 1000.0;
+    	fprintf(stderr, "Can't open /proc/cpuinfo to get clock information\n");
+    	cpu_ghz = 1.0;
+    	return cpu_ghz * 1000.0;
     }
     if (verbose) {
-	printf("Processor Clock Rate ~= %.4f GHz (extracted from file)\n", cpu_ghz);
+	    printf("Processor Clock Rate ~= %.4f GHz (extracted from file)\n", cpu_ghz);
     }
     return cpu_ghz * 1000;
 }
@@ -106,7 +106,7 @@ double mhz_full(int verbose, int sleeptime)
   start_counter();
   sleep(sleeptime);
   rate = get_counter()/(1e6*sleeptime);
-  if (verbose) 
+  if (verbose)
     printf("Processor Clock Rate ~= %.1f MHz\n", rate);
   return rate;
 }
@@ -136,6 +136,7 @@ static void callibrate(int verbose)
   oldc = t.tms_utime;
   start_counter();
   oldt = get_counter();
+
   while (e <NEVENT) {
     double newt = get_counter();
     if (newt-oldt >= THRESHOLD) {
@@ -143,20 +144,21 @@ static void callibrate(int verbose)
       times(&t);
       newc = t.tms_utime;
       if (newc > oldc) {
-	double cpt = (newt-oldt)/(newc-oldc);
-	if ((cyc_per_tick == 0.0 || cyc_per_tick > cpt) && cpt > RECORDTHRESH)
-	  cyc_per_tick = cpt;
-	/*
-	if (verbose)
-	  printf("Saw event lasting %.0f cycles and %d ticks.  Ratio = %f\n",
-		 newt-oldt, (int) (newc-oldc), cpt);
-	*/
-	e++;
-	oldc = newc;
+      	double cpt = (newt-oldt)/(newc-oldc);
+      	if ((cyc_per_tick == 0.0 || cyc_per_tick > cpt) && cpt > RECORDTHRESH)
+      	  cyc_per_tick = cpt;
+      	/*
+      	if (verbose)
+      	  printf("Saw event lasting %.0f cycles and %d ticks.  Ratio = %f\n",
+      		 newt-oldt, (int) (newc-oldc), cpt);
+      	*/
+      	e++;
+      	oldc = newc;
       }
       oldt = newt;
     }
   }
+
   if (verbose)
     printf("Setting cyc_per_tick to %f\n", cyc_per_tick);
 }

@@ -1,5 +1,4 @@
 /* mountain.c - Generate the memory mountain. */
-/* $begin mountainmain */
 #include <stdlib.h>
 #include <stdio.h>
 #include "fcyc2.h" /* measurement routines */
@@ -14,12 +13,10 @@
 long data[MAXELEMS];      /* The global array we'll be traversing */
 
 /* $end mountainfuns */
-/* $end mountainmain */
 void init_data(long *data, int n);
 int test(int elems, int stride);
 double run(int size, int stride, double Mhz);
 
-/* $begin mountainmain */
 int main()
 {
     int size;        /* Working set size (in bytes) */
@@ -28,35 +25,27 @@ int main()
 
     init_data(data, MAXELEMS); /* Initialize each element in data */
     Mhz = mhz(0);              /* Estimate the clock frequency */
-/* $end mountainmain */
-    /* Not shown in the text */
     printf("Clock frequency is approx. %.1f MHz\n", Mhz);
     printf("Memory mountain (MB/sec)\n");
 
     printf("\t");
     for (stride = 1; stride <= MAXSTRIDE; stride++)
-	   printf("s%d\t", stride);
+      printf("s%d\t", stride);
     printf("\n");
 
-    /* $begin mountainmain */
     for (size = MAXBYTES; size >= MINBYTES; size >>= 1) {
-    /* $end mountainmain */
-    	/* Not shown in the text */
     	if (size > (1 << 20))
     	    printf("%dm\t", size / (1 << 20));
     	else
     	    printf("%dk\t", size / 1024);
 
-    /* $begin mountainmain */
     	for (stride = 1; stride <= MAXSTRIDE; stride++) {
     	    printf("%.0f\t", run(size, stride, Mhz));
-
     	}
     	printf("\n");
     }
     exit(0);
 }
-/* $end mountainmain */
 
 /* init_data - initializes the array */
 void init_data(long *data, int n)
@@ -67,7 +56,6 @@ void init_data(long *data, int n)
 	   data[i] = i;
 }
 
-/* $begin mountainfuns */
 /* test - Iterate over first "elems" elements of array "data" with
  *        stride of "stride", using 4x4 loop unrolling.
  */
@@ -106,4 +94,3 @@ double run(int size, int stride, double Mhz)
     cycles = fcyc2(test, elems, stride, 0);  /* Call test(elems,stride) */ //line:mem:fcyc
     return (size / stride) / (cycles / Mhz); /* Convert cycles to MB/s */  //line:mem:bwcompute
 }
-/* $end mountainfuns */
