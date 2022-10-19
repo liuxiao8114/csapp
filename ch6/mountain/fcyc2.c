@@ -98,7 +98,7 @@ static void clear()
 }
 
 double fcyc2_full(test_funct f, int param1, int param2, int clear_cache,
-		 int k, double epsilon, int maxsamples, int compensate) 
+		 int k, double epsilon, int maxsamples, int compensate)
 {
   double result;
   init_sampler(k, maxsamples);
@@ -106,7 +106,7 @@ double fcyc2_full(test_funct f, int param1, int param2, int clear_cache,
     do {
       double cyc;
       if (clear_cache)
-	clear();
+        clear();
       f(param1, param2);   /* warm cache */
       start_comp_counter();
       f(param1, param2);
@@ -117,7 +117,7 @@ double fcyc2_full(test_funct f, int param1, int param2, int clear_cache,
     do {
       double cyc;
       if (clear_cache)
-	clear();
+        clear();
       f(param1, param2); /* warm cache */
       start_counter();
       f(param1, param2);
@@ -135,10 +135,10 @@ double fcyc2_full(test_funct f, int param1, int param2, int clear_cache,
 #endif
   result = values[0];
 #if !KEEP_VALS
-  free(values); 
+  free(values);
   values = NULL;
 #endif
-  return result;  
+  return result;
 }
 
 double fcyc2(test_funct f, int param1, int param2, int clear_cache)
@@ -246,7 +246,7 @@ double get_comp_counter_tod() {
 
 
 double fcyc2_full_tod(test_funct f, int param1, int param2, int clear_cache,
-		 int k, double epsilon, int maxsamples, int compensate) 
+		 int k, double epsilon, int maxsamples, int compensate)
 {
   double result;
   init_sampler(k, maxsamples);
@@ -281,19 +281,13 @@ double fcyc2_full_tod(test_funct f, int param1, int param2, int clear_cache,
 #endif
   result = values[0];
 #if !KEEP_VALS
-  free(values); 
+  free(values);
   values = NULL;
 #endif
-  return result;  
+  return result;
 }
 
 double fcyc2_tod(test_funct f, int param1, int param2, int clear_cache)
 {
   return fcyc2_full_tod(f, param1, param2, clear_cache, 3, 0.01, 20, 0);
 }
-
-
-
-
-
-
