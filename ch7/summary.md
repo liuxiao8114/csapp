@@ -59,10 +59,19 @@ Local procedure variables that are defined with the C static attribute are not m
 
 ### <Symbol tables>
 Symbol tables are built by assemblers, using symbols exported by the complier into the assembly-language .s file. An ELF symbol table is contained in the .symtab section. It contains an array of entries showed in Fig7.4:
-+ name:
+
+Fig7.4
+----------------------------------------------------------
+typedef struct {
+
+} symbol
+----------------------------------------------------------
+
++ name: String table offset
 + value: the symbol's address.
   + for relocatable modules, the value is an offset from the beginning of the section where the object is defined.
   + for executable object files, the value is an absolute run-time address.
++ size: Object size in bytes
 
 Each symbol is assigned to some section of the object file, denoted by the *section* field, which is an index into the section header table.
 
@@ -142,6 +151,8 @@ R_X86_64_32
 
 ### 7.7.2 Relocating Symbol References
 
+Fig 7.9 psedocode for relocate entry
+----------------------------------------------------------
 foreach section s {
   foreach relocation entry r {
     refptr = s + r.offset;
@@ -156,9 +167,10 @@ foreach section s {
     }
   }
 }
+----------------------------------------------------------
 
 Fig 7.11 Code and relocation entries from main.o. (Original C code in Fig 7.1)
------------------------------
+----------------------------------------------------------
 subq  $0x8, %rsp
 movq  $0x2, %esi
 movq  $0x0, %edi
@@ -167,7 +179,7 @@ callq 13
    f: R_X86_64_PC32 sum-0x4
 addq  $0x8, %rsp
 retq
------------------------------
+----------------------------------------------------------
 
 Suppose:
 ADDR(s) = ADDR(.text) = 0x4004d0
@@ -182,14 +194,28 @@ refptr  = s + r.offset
         = 0x4004e8 +
 
 ## 7.8 Executable Object Files
-Fig 7.13 Typical ELF executable object file
+### <Segment/program header table>
+p.732
+ELF executables are designed to be easy to load into memory, with contiguous chunks of the executable file mapped to contiguous memory segments. This mapping is described by the program header table.
 
+Fig 7.13 Typical ELF executable object file
+----------------------------------------------------------
 ELF header
 Segment header table
-
+.init
+.text
+.rodata
+.data
+.bss
+.symtab
+.debug
+.line
+.strtab
 Section header table
+----------------------------------------------------------
 
 Fig 7.14 Program header table for the example executable prog.
+----------------------------------------------------------
   Read-only code segment
 1   LOAD    
 2
@@ -197,18 +223,23 @@ Fig 7.14 Program header table for the example executable prog.
   Read/write data segment
 1
 2
+----------------------------------------------------------
 
 For any segment s, the linker must choose a starting address, vaddr
   vaddr mod align = off mod align
 
 ## 7.9 Loading Executable Object Files
+The loader copies the code and data in the executable object file from disk into memory and then runs the program by jumping to its first instruction, or entry point. This process of copying the program into memory and then running it is known as loading.
+
 Fig 7.15 Linux x86-64 run-time memory image
+----------------------------------------------------------
 + code segment
 + data segment
 + run-time heap and grows upward via calls to the malloc library
 + shared modules
 + user stack
 + kernel
+----------------------------------------------------------
 
 When the loader runs, it creates a memory image similar to the one shown in Fig 7.15. Guided by the program header table, it copies chunks of the executable object file into the code and data segments. Next, the loader jumps to the program's entry point, which is always the address of the _start function. This function is defined in the system object file crt1.o and is the same for all C programs. The _start function calls the system startup function, __libc_start_main, which is defined in libc.so. It initializes the execution environment, calls the user-level main function, handles its return value, and if necessary returns control to the kernel.
 
@@ -217,11 +248,24 @@ When the loader runs, it creates a memory image similar to the one shown in Fig 
 + Almost every C program uses standard IO functions such as printf and scanf. At run time, the code for these functions is duplicated in the text segment of each running process.
 
 Shared libraries are "shared" in two different ways.
-+ in any given file system, there is exactly one .so file for a particular library. The code and data in this .so file are shared by all of the executable object files that reference the library
-+ a single copy of the .text section of a shared library in memory can be shared by different running processes.
++ in any given file system, there is exactly one .so file for a particular library. The code and data in this .so file are shared by all of the executable object files that reference the library, as opposed to the contents of static libraries, which are copied and embedded in the executables that reference them.
++ a single copy of the .text section of a shared library in memory can be shared by different running processes. <Chapter 9>
+
+Fig 7.16 Dynamic linking with share libraries
+
+gcc -fgic -shared -o libvector.so addvec.c multvec.c
+gcc -o progl main2.c ./libvector.so
+
+The basic idea
 
 ...
 .interp section, which contains the path name of the dynamic linker, which is itself a shared object. Instead of passing control to the application, as it would normally do, the loader loads and runs the dynamic linker.
 
 ## 7.11 Loading and Linking Shared Libraries from Applications
 it is possible for an application to request the dynamic linker to load and link arbitrary shared libraries while the application is running, without having to link in the applications against those libraries at compile time.
+
+## 7.12 Position-Independent Code(PIC)
+Modern systems compile the code segments of shared modules so that they can be loaded anywhere in memory without having to be modified by the linker.
+Code that can be loaded without needing any relocations is known as PIC.
+
+GOT: Global offset table
