@@ -1,3 +1,11 @@
-void phase5(string s) {
+void phase5(char* s) {
+  // 40108b
 
 }
+
+// 0x737265697564616d
+/*
+  61
+  0110 0001
+
+*/

@@ -1,0 +1,178 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# Include your name and ID here.
+#
+# Describe how and why you modified the baseline code.
+#
+##################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+
+##################################################################
+# You can modify this portion
+# Loop header
+  xorq %rax,%rax		  # count = 0
+  irmovq $1, %rcx
+  irmovq $13, %rbx     # set k = 22
+
+  rrmovq %rdx, %rbp   # i = len
+  subq %rbx, %rbp     # i -= k
+  jge Unroll8         # if i >= 0, goto Unroll8
+  rrmovq %rdx, %rbp   # i = len
+
+Unroll3Prev:
+  irmovq $3, %rbx     # set k = 3
+  subq %rbx, %rbp     # i -= k
+  jge Unroll3         # if i >= 0, goto Unroll3
+  subq %rcx, %rbp     # i = i - 1
+  addq %rbp, %rbx     # k = k + i
+  jge NormalLoop
+  ret
+
+Unroll8:
+	mrmovq   (%rdi), %r8	# read val from src...
+	mrmovq  8(%rdi), %r9	# read val from src...
+	mrmovq 16(%rdi), %r10	# read val from src...
+	mrmovq 24(%rdi), %r11	# read val from src...
+	mrmovq 32(%rdi), %r12	# read val from src...
+	mrmovq 40(%rdi), %r13	# read val from src...
+	mrmovq 48(%rdi), %r14	# read val from src...
+	mrmovq 56(%rdi), %rdx	# read val from src...
+	rmmovq %r8,   (%rsi)	# ...and store it to dst
+	rmmovq %r9,  8(%rsi)	# ...and store it to dst
+	rmmovq %r10, 16(%rsi)	# ...and store it to dst
+	rmmovq %r11, 24(%rsi)	# ...and store it to dst
+	rmmovq %r12, 32(%rsi)	# ...and store it to dst
+	rmmovq %r13, 40(%rsi)	# ...and store it to dst
+	rmmovq %r14, 48(%rsi)	# ...and store it to dst
+	rmmovq %rdx, 56(%rsi)	# ...and store it to dst
+
+	andq %r8, %r8		  	# val <= 0?
+  jle Val2
+  addq %rcx, %rax			# count++
+Val2:
+  andq %r9, %r9			  # val <= 0?
+  jle Val3
+  addq %rcx, %rax			# count++
+Val3:
+  andq %r10, %r10			# val <= 0?
+  jle Val4
+  addq %rcx, %rax			# count++
+Val4:
+  andq %r11, %r11			# val <= 0?
+  jle Val5
+  addq %rcx, %rax			# count++
+Val5:
+  andq %r12, %r12			# val <= 0?
+  jle Val6
+  addq %rcx, %rax			# count++
+Val6:
+  andq %r13, %r13			# val <= 0?
+  jle Val7
+  addq %rcx, %rax			# count++
+Val7:
+  andq %r14, %r14			# val <= 0?
+  jle Val8
+  addq %rcx, %rax			# count++
+Val8:
+  andq %rdx, %rdx			# val <= 0?
+  jle Val9
+  addq %rcx, %rax			# count++
+
+Val9:
+  mrmovq 64(%rdi), %r8	# read val from src...
+  mrmovq 72(%rdi), %r9	# read val from src...
+  mrmovq 80(%rdi), %r10	# read val from src...
+  mrmovq 88(%rdi), %r11	# read val from src...
+  mrmovq 96(%rdi), %r12	# read val from src...
+  rmmovq %r8,  64(%rsi)	# ...and store it to dst
+  rmmovq %r9,  72(%rsi)	# ...and store it to dst
+  rmmovq %r10, 80(%rsi)	# ...and store it to dst
+  rmmovq %r11, 88(%rsi)	# ...and store it to dst
+  rmmovq %r12, 96(%rsi)	# ...and store it to dst
+
+  andq %r8, %r8		  	# val <= 0?
+  jle Val10
+  addq %rcx, %rax			# count++
+Val10:
+  andq %r9, %r9			  # val <= 0?
+  jle Val11
+  addq %rcx, %rax			# count++
+Val11:
+  andq %r10, %r10			# val <= 0?
+  jle Val12
+  addq %rcx, %rax			# count++
+Val12:
+  andq %r11, %r11			# val <= 0?
+  jle Val13
+  addq %rcx, %rax			# count++
+Val13:
+  andq %r12, %r12			# val <= 0?
+  jle LoopJudgement8
+  addq %rcx, %rax			# count++
+
+LoopJudgement8:
+  iaddq $104, %rdi			# src += 8
+  iaddq $104, %rsi			# dst += 8
+	subq %rbx, %rbp			# i -= k
+	jge Unroll8
+
+  addq %rbx, %rbp     # i = k + i
+  jmp Unroll3Prev
+
+Unroll3:
+	mrmovq   (%rdi), %r8	# read val from src...
+	mrmovq  8(%rdi), %r9	# read val from src...
+	mrmovq 16(%rdi), %r10	# read val from src...
+	rmmovq %r8,    (%rsi)	# ...and store it to dst
+	rmmovq %r9,   8(%rsi)	# ...and store it to dst
+	rmmovq %r10, 16(%rsi)	# ...and store it to dst
+
+  andq %r8, %r8			# val <= 0?
+  jle U3Val2
+  addq %rcx, %rax			# count++
+U3Val2:
+  andq %r9, %r9			# val <= 0?
+  jle U3Val3
+  addq %rcx, %rax			# count++
+U3Val3:
+  andq %r10, %r10			# val <= 0?
+  jle LoopJudgement3
+  addq %rcx, %rax			# count++
+
+LoopJudgement3:
+  iaddq $24, %rdi			# src += 3
+  iaddq $24, %rsi			# dst += 3
+	subq %rbx, %rbp			# i -= k
+	jge Unroll3
+  subq %rcx, %rbp     # i = i - 1
+  addq %rbp, %rbx     # k = k + i
+  jge NormalLoop
+  ret
+
+NormalLoop:
+  mrmovq (%rdi), %r10	# read val from src...
+  iaddq $8, %rdi			# src++
+  rmmovq %r10, (%rsi)	# ...and store it to dst
+  iaddq $8, %rsi			# dst++
+  andq %r10, %r10			# val <= 0?
+  jle NormalLoopJudgement
+  addq %rcx, %rax			# count++
+
+NormalLoopJudgement:
+  subq %rcx, %rbx     # k--
+  jge NormalLoop
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	ret
+##################################################################
+# Keep the following label at the end of your function
+End:
+#/* $end ncopy-ys */
