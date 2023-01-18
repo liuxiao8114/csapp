@@ -207,8 +207,10 @@ int main(int argc, char **argv)
     	if (!strcmp(team.teamname, "")) {
     	    printf("ERROR: Please provide the information about your team in mm.c.\n");
     	    exit(1);
-    	} else
+    	}
+      else
     	    printf("Team Name:%s\n", team.teamname);
+
     	if ((*team.name1 == '\0') || (*team.id1 == '\0')) {
     	    printf("ERROR.  You must fill in all team member 1 fields!\n");
     	    exit(1);
@@ -289,7 +291,7 @@ int main(int argc, char **argv)
     mem_init();
 
     /* Evaluate student's mm malloc package using the K-best scheme */
-    for (i=0; i < num_tracefiles; i++) {
+    for (i = 0; i < num_tracefiles; i++) {
     	trace = read_trace(tracedir, tracefiles[i]);
     	mm_stats[i].ops = trace->num_ops;
 
@@ -394,30 +396,29 @@ static int add_range(range_t **ranges, char *lo, int size,
 
     /* Payload addresses must be ALIGNMENT-byte aligned */
     if (!IS_ALIGNED(lo)) {
-	sprintf(msg, "Payload address (%p) not aligned to %d bytes",
-		lo, ALIGNMENT);
-        malloc_error(tracenum, opnum, msg);
-        return 0;
+      sprintf(msg, "Payload address (%p) not aligned to %d bytes", lo, ALIGNMENT);
+      malloc_error(tracenum, opnum, msg);
+      return 0;
     }
 
     /* The payload must lie within the extent of the heap */
     if ((lo < (char *)mem_heap_lo()) || (lo > (char *)mem_heap_hi()) ||
-	(hi < (char *)mem_heap_lo()) || (hi > (char *)mem_heap_hi())) {
-	sprintf(msg, "Payload (%p:%p) lies outside heap (%p:%p)",
-		lo, hi, mem_heap_lo(), mem_heap_hi());
-	malloc_error(tracenum, opnum, msg);
-        return 0;
+      (hi < (char *)mem_heap_lo()) || (hi > (char *)mem_heap_hi())) {
+      sprintf(msg, "Payload (%p:%p) lies outside heap (%p:%p)",
+      	lo, hi, mem_heap_lo(), mem_heap_hi());
+      malloc_error(tracenum, opnum, msg);
+      return 0;
     }
 
     /* The payload must not overlap any other payloads */
     for (p = *ranges;  p != NULL;  p = p->next) {
-        if ((lo >= p->lo && lo <= p-> hi) ||
-            (hi >= p->lo && hi <= p->hi)) {
-	    sprintf(msg, "Payload (%p:%p) overlaps another payload (%p:%p)\n",
-		    lo, hi, p->lo, p->hi);
-	    malloc_error(tracenum, opnum, msg);
-	    return 0;
-        }
+      if ((lo >= p->lo && lo <= p-> hi) ||
+          (hi >= p->lo && hi <= p->hi)) {
+  	    sprintf(msg, "Payload (%p:%p) overlaps another payload (%p:%p)\n",
+  		    lo, hi, p->lo, p->hi);
+  	    malloc_error(tracenum, opnum, msg);
+  	    return 0;
+      }
     }
 
     /*
@@ -425,7 +426,8 @@ static int add_range(range_t **ranges, char *lo, int size,
      * by creating a range struct and adding it the range list.
      */
     if ((p = (range_t *)malloc(sizeof(range_t))) == NULL)
-	unix_error("malloc error in add_range");
+      unix_error("malloc error in add_range");
+
     p->next = *ranges;
     p->lo = lo;
     p->hi = hi;
@@ -501,7 +503,7 @@ static trace_t *read_trace(char *tracedir, char *filename)
     	sprintf(msg, "Could not open %s in read_trace", path);
     	unix_error(msg);
     }
-    
+
     fscanf(tracefile, "%d", &(trace->sugg_heapsize)); /* not used */
     fscanf(tracefile, "%d", &(trace->num_ids));
     fscanf(tracefile, "%d", &(trace->num_ops));
@@ -705,68 +707,68 @@ static double eval_mm_util(trace_t *trace, int tracenum, range_t **ranges)
     /* initialize the heap and the mm malloc package */
     mem_reset_brk();
     if (mm_init() < 0)
-	app_error("mm_init failed in eval_mm_util");
+      app_error("mm_init failed in eval_mm_util");
 
     for (i = 0;  i < trace->num_ops;  i++) {
         switch (trace->ops[i].type) {
 
         case ALLOC: /* mm_alloc */
-	    index = trace->ops[i].index;
-	    size = trace->ops[i].size;
+    	    index = trace->ops[i].index;
+    	    size = trace->ops[i].size;
 
-	    if ((p = mm_malloc(size)) == NULL)
-		app_error("mm_malloc failed in eval_mm_util");
+    	    if ((p = mm_malloc(size)) == NULL)
+            app_error("mm_malloc failed in eval_mm_util");
 
-	    /* Remember region and size */
-	    trace->blocks[index] = p;
-	    trace->block_sizes[index] = size;
+    	    /* Remember region and size */
+    	    trace->blocks[index] = p;
+    	    trace->block_sizes[index] = size;
 
-	    /* Keep track of current total size
-	     * of all allocated blocks */
-	    total_size += size;
+    	    /* Keep track of current total size
+    	     * of all allocated blocks */
+    	    total_size += size;
 
-	    /* Update statistics */
-	    max_total_size = (total_size > max_total_size) ?
-		total_size : max_total_size;
-	    break;
+    	    /* Update statistics */
+    	    max_total_size = (total_size > max_total_size) ?
+            total_size : max_total_size;
+    	    break;
 
-	case REALLOC: /* mm_realloc */
-	    index = trace->ops[i].index;
-	    newsize = trace->ops[i].size;
-	    oldsize = trace->block_sizes[index];
+      	case REALLOC: /* mm_realloc */
+    	    index = trace->ops[i].index;
+    	    newsize = trace->ops[i].size;
+    	    oldsize = trace->block_sizes[index];
 
-	    oldp = trace->blocks[index];
-	    if ((newp = mm_realloc(oldp,newsize)) == NULL)
-		app_error("mm_realloc failed in eval_mm_util");
+    	    oldp = trace->blocks[index];
+    	    if ((newp = mm_realloc(oldp,newsize)) == NULL)
+            app_error("mm_realloc failed in eval_mm_util");
 
-	    /* Remember region and size */
-	    trace->blocks[index] = newp;
-	    trace->block_sizes[index] = newsize;
+    	    /* Remember region and size */
+    	    trace->blocks[index] = newp;
+    	    trace->block_sizes[index] = newsize;
 
-	    /* Keep track of current total size
-	     * of all allocated blocks */
-	    total_size += (newsize - oldsize);
+    	    /* Keep track of current total size
+    	     * of all allocated blocks */
+    	    total_size += (newsize - oldsize);
 
-	    /* Update statistics */
-	    max_total_size = (total_size > max_total_size) ?
-		total_size : max_total_size;
-	    break;
+    	    /* Update statistics */
+    	    max_total_size = (total_size > max_total_size) ?
+    		    total_size : max_total_size;
+    	    break;
 
         case FREE: /* mm_free */
-	    index = trace->ops[i].index;
-	    size = trace->block_sizes[index];
-	    p = trace->blocks[index];
+    	    index = trace->ops[i].index;
+    	    size = trace->block_sizes[index];
+    	    p = trace->blocks[index];
 
-	    mm_free(p);
+    	    mm_free(p);
 
-	    /* Keep track of current total size
-	     * of all allocated blocks */
-	    total_size -= size;
+    	    /* Keep track of current total size
+    	     * of all allocated blocks */
+    	    total_size -= size;
 
-	    break;
+    	    break;
 
-	default:
-	    app_error("Nonexistent request type in eval_mm_util");
+      	default:
+    	    app_error("Nonexistent request type in eval_mm_util");
 
         }
     }
@@ -834,33 +836,32 @@ static int eval_libc_valid(trace_t *trace, int tracenum)
     char *p, *newp, *oldp;
 
     for (i = 0;  i < trace->num_ops;  i++) {
-        switch (trace->ops[i].type) {
-
+      switch (trace->ops[i].type) {
         case ALLOC: /* malloc */
-	    if ((p = malloc(trace->ops[i].size)) == NULL) {
-		malloc_error(tracenum, i, "libc malloc failed");
-		unix_error("System message");
-	    }
-	    trace->blocks[trace->ops[i].index] = p;
-	    break;
+    	    if ((p = malloc(trace->ops[i].size)) == NULL) {
+        		malloc_error(tracenum, i, "libc malloc failed");
+        		unix_error("System message");
+    	    }
+    	    trace->blocks[trace->ops[i].index] = p;
+    	    break;
 
-	case REALLOC: /* realloc */
-            newsize = trace->ops[i].size;
-	    oldp = trace->blocks[trace->ops[i].index];
-	    if ((newp = realloc(oldp, newsize)) == NULL) {
-		malloc_error(tracenum, i, "libc realloc failed");
-		unix_error("System message");
-	    }
-	    trace->blocks[trace->ops[i].index] = newp;
-	    break;
+      	case REALLOC: /* realloc */
+          newsize = trace->ops[i].size;
+    	    oldp = trace->blocks[trace->ops[i].index];
+    	    if ((newp = realloc(oldp, newsize)) == NULL) {
+        		malloc_error(tracenum, i, "libc realloc failed");
+        		unix_error("System message");
+    	    }
+    	    trace->blocks[trace->ops[i].index] = newp;
+    	    break;
 
         case FREE: /* free */
-	    free(trace->blocks[trace->ops[i].index]);
-	    break;
+    	    free(trace->blocks[trace->ops[i].index]);
+    	    break;
 
-	default:
-	    app_error("invalid operation type  in eval_libc_valid");
-	}
+      	default:
+      	  app_error("invalid operation type  in eval_libc_valid");
+    	}
     }
 
     return 1;

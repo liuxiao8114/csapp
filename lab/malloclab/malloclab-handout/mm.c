@@ -45,12 +45,19 @@ team_t team = {
 
 /* global heap pointer */
 static void *heap_listp;
+/*
++ segregate free lists:
+
+
+
+*/
+
+
 
 /*
  * mm_init - initialize the malloc package.
  */
 int mm_init(void) {
-
   return 0;
 }
 
@@ -94,4 +101,12 @@ void *mm_realloc(void *ptr, size_t size) {
   memcpy(newptr, oldptr, copySize);
   mm_free(oldptr);
   return newptr;
+}
+
+static void extend_heap() {
+
+}
+
+static void mm_check() {
+
 }
