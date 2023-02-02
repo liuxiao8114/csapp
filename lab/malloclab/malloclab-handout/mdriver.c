@@ -442,12 +442,12 @@ static void remove_range(range_t **ranges, char *lo)
 {
     range_t *p;
     range_t **prevpp = ranges;
-    int size;
+    // int size;
 
     for (p = *ranges;  p != NULL; p = p->next) {
         if (p->lo == lo) {
-	    *prevpp = p->next;
-            size = p->hi - p->lo + 1;
+	         *prevpp = p->next;
+            // size = p->hi - p->lo + 1;
             free(p);
             break;
         }
@@ -790,26 +790,27 @@ static void eval_mm_speed(void *ptr)
     /* Reset the heap and initialize the mm package */
     mem_reset_brk();
     if (mm_init() < 0)
-	app_error("mm_init failed in eval_mm_speed");
+      app_error("mm_init failed in eval_mm_speed");
 
     /* Interpret each trace request */
     for (i = 0;  i < trace->num_ops;  i++)
-        switch (trace->ops[i].type) {
-
+      switch (trace->ops[i].type) {
         case ALLOC: /* mm_malloc */
             index = trace->ops[i].index;
             size = trace->ops[i].size;
+
             if ((p = mm_malloc(size)) == NULL)
-		app_error("mm_malloc error in eval_mm_speed");
+		          app_error("mm_malloc error in eval_mm_speed");
             trace->blocks[index] = p;
             break;
 
-	case REALLOC: /* mm_realloc */
-	    index = trace->ops[i].index;
+      	case REALLOC: /* mm_realloc */
+      	    index = trace->ops[i].index;
             newsize = trace->ops[i].size;
-	    oldp = trace->blocks[index];
+      	    oldp = trace->blocks[index];
+
             if ((newp = mm_realloc(oldp,newsize)) == NULL)
-		app_error("mm_realloc error in eval_mm_speed");
+      		    app_error("mm_realloc error in eval_mm_speed");
             trace->blocks[index] = newp;
             break;
 
@@ -819,9 +820,9 @@ static void eval_mm_speed(void *ptr)
             mm_free(block);
             break;
 
-	default:
-	    app_error("Nonexistent request type in eval_mm_valid");
-        }
+      	default:
+      	    app_error("Nonexistent request type in eval_mm_valid");
+      }
 }
 
 /*
@@ -881,30 +882,29 @@ static void eval_libc_speed(void *ptr)
 
     for (i = 0;  i < trace->num_ops;  i++) {
         switch (trace->ops[i].type) {
-        case ALLOC: /* malloc */
-	    index = trace->ops[i].index;
-	    size = trace->ops[i].size;
-	    if ((p = malloc(size)) == NULL)
-		unix_error("malloc failed in eval_libc_speed");
-	    trace->blocks[index] = p;
-	    break;
+          case ALLOC: /* malloc */
+        	    index = trace->ops[i].index;
+        	    size = trace->ops[i].size;
+        	    if ((p = malloc(size)) == NULL)
+        		    unix_error("malloc failed in eval_libc_speed");
+        	    trace->blocks[index] = p;
+        	    break;
 
-	case REALLOC: /* realloc */
-	    index = trace->ops[i].index;
-	    newsize = trace->ops[i].size;
-	    oldp = trace->blocks[index];
-	    if ((newp = realloc(oldp, newsize)) == NULL)
-		unix_error("realloc failed in eval_libc_speed\n");
+        	case REALLOC: /* realloc */
+        	    index = trace->ops[i].index;
+        	    newsize = trace->ops[i].size;
+        	    oldp = trace->blocks[index];
+        	    if ((newp = realloc(oldp, newsize)) == NULL)
+        		    unix_error("realloc failed in eval_libc_speed\n");
+        	    trace->blocks[index] = newp;
+        	    break;
 
-	    trace->blocks[index] = newp;
-	    break;
-
-        case FREE: /* free */
-	    index = trace->ops[i].index;
-	    block = trace->blocks[index];
-	    free(block);
-	    break;
-	}
+          case FREE: /* free */
+        	    index = trace->ops[i].index;
+        	    block = trace->blocks[index];
+        	    free(block);
+        	    break;
+      	}
     }
 }
 
