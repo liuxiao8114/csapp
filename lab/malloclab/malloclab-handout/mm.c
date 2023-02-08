@@ -42,41 +42,46 @@ team_t team = {
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
 
 #define MIN_SIZE (ALIGN(sizeof(size_t)))
+#define FREE_LIST_SIZE 32
 
-// typedef struct fBlock *fb;
-//
-// struct fBlock {
-//   unsigned int size;
-//   fb prev;
-//   fb next;
-// };
+#define GET_FREE_SIZE(fp) (*(unsigned int *) (fp))
+#define GET_NEXT_FREE(fp) ((char *)(fp) + ALIGNMENT)
+#define GET_PREV_FREE(fp) ((char *)(fp) + ALIGNMENT * 2)
+#define PUT_NEXT_FREE(fp, val) (*(unsigned int *)(fp + ALIGNMENT) = (val))
+#define PUT_PREV_FREE(fp, val) (*(unsigned int *)(fp + ALIGNMENT * 2) = (val))
 
 /* global heap pointer */
 static void *heapListp;
 
 /* explicit free list: pointer to free block */
 static void **freeListp;
-static size_t freeListSize = 0;
 
 enum { INIT, FREE, ALLOC, REALLOC, EXTEND } MM_CHECK_TYPE;
+
+static void *extend_heap(size_t size, size_t index);
+static void mm_check(int type);
+static void *coalesce(void *bp);
+static size_t getFreeListIndex(size_t size);
+static void *update(void *bp, size_t size, size_t type);
+static void *insert(void *lp, void *bp);
+static void *delete(void *bp, size_t newsize);
+static void *findFit(size_t size, size_t index);
 
 /*
  * mm_init - initialize the malloc package.
  */
 int mm_init(void) {
-  if((heapListp = mem_sbrk(6 * WSIZE)) == (void *)-1)
+  if((heapListp = mem_sbrk(36 * WSIZE)) == (void *)-1)
     return -1;
 
   PUT(heapListp, 0);
 
   /* Explicit free block */
   freeListp = heapListp + WSIZE;
-  PUT(freeListp, 0); /* freeList start point */
-
-  PUT(heapListp + 3*WSIZE, PACK(DSIZE, 1)); /* Prologue header */
-  PUT(heapListp + 4*WSIZE, PACK(DSIZE, 1)); /* Prologue footer */
-  PUT(heapListp + 5*WSIZE, PACK(0, 1));     /* Epilogue header */
-  heapListp += 4*WSIZE;
+  PUT(heapListp + 33*WSIZE, PACK(DSIZE, 1)); /* Prologue header */
+  PUT(heapListp + 34*WSIZE, PACK(DSIZE, 1)); /* Prologue footer */
+  PUT(heapListp + 35*WSIZE, PACK(0, 1));     /* Epilogue header */
+  heapListp += 34*WSIZE;
 
   size_t size = CHUNKSIZE / WSIZE;
   if(extend_heap(size, getFreeListIndex(size)) == NULL)
@@ -91,21 +96,17 @@ int mm_init(void) {
  */
 void *mm_malloc(size_t size) {
   size_t asize = ALIGN(size + MIN_SIZE);
-  char *fp = findFit(asize, getFreeListIndex(asize));
+  char *p = findFit(asize, getFreeListIndex(asize));
 
-  if (fp == NULL)
+  if (p == NULL)
     return NULL;
 
-  size_t fsize = GET_SIZE(HDRP(fp));
+  PUT(p, 0);   // demand zero
+  PUT(HDRP(p), PACK(asize, 1));
+  PUT(FTRP(p), PACK(asize, 1));
 
-  PUT(fp, 0);   // demand zero
-  PUT(HDRP(fp), PACK(asize, 1));
-  PUT(FTRP(fp), PACK(asize, 1));
-
-  if(fsize > asize) {
-    updateFreeList(fp, fsize - asize, ALLOC);
-  }
-
+  // place and update free list
+  update(p, asize, ALLOC);
   return p;
 }
 
@@ -122,7 +123,6 @@ void mm_free(void *ptr) {
 
 static void *extend_heap(size_t size, size_t index) {
   char *bp;
-  // size_t asize = (size % 2) ? (size + 1) / WSIZE : size / WSIZE;
   size_t asize = ALIGN(size + MIN_SIZE);
 
   if ((long)(bp = mem_sbrk(asize)) == -1)
@@ -132,17 +132,8 @@ static void *extend_heap(size_t size, size_t index) {
   PUT(FTRP(bp), PACK(asize, 0));         /* Block footer */
   PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));  /* Epilogue */
 
+  insert(*(freeListp + index), bp);
   mm_check(EXTEND);
-
-  // mm_init
-  if(*(freeListp + index) == NULL) {
-    *freeListp = bp + WSIZE;
-    PUT(freeListp, ++freeListSize);
-    PUT(freeListp + DSIZE, 0);
-    PUT(freeListp + 2*DSIZE, 0);
-
-    return bp;
-  }
 
   return coalesce(bp);
 }
@@ -164,22 +155,20 @@ static void *coalesce(void *bp) {
 
   if(GET_ALLOC(prev)) {
     if(!GET_ALLOC(next))
-      PUT(bp, PACK((currentSize += GET_SIZE(next)), 0);
+      PUT(bp, PACK((currentSize += GET_SIZE(next)), 0));
 
-    // return updateFreeList(bp, currentSize, FREE);
-    return bp;
+    return update(bp, currentSize, FREE);
   }
 
   if(GET_ALLOC(next))
-    PUT(prev, PACK((currentSize += GET_SIZE(prev)), 0);
+    PUT(prev, PACK((currentSize += GET_SIZE(prev)), 0));
   else
-    PUT(prev, PACK((currentSize += GET_SIZE(prev) + GET_SIZE(next)), 0);
+    PUT(prev, PACK((currentSize += GET_SIZE(prev) + GET_SIZE(next)), 0));
 
-  // return updateFreeList(prev, currentSize, FREE);
-  return prev;
+  return update(prev, currentSize, FREE);
 }
 
-static size_t getFreeListIndex(size_t size) {
+static size_t getFreeListIndex(size_t base) {
   size_t x = 0;
 
   while(base > 1) {
@@ -190,28 +179,87 @@ static size_t getFreeListIndex(size_t size) {
   return x;
 }
 
-static void *updateFreeList(void *bp, size_t size, size_t type) {
-  void *fp;
+static void *update(void *bp, size_t size, size_t type) {
   size_t index = getFreeListIndex(size);
+  size_t rsize, rindex;
 
   switch (type) {
     case ALLOC:
+      rsize = GET_SIZE(HDRP(bp)) - size;
+
+      if(rsize == 0) {
+        delete(bp, 0);
+        return NULL;
+      }
+
+      rindex = getFreeListIndex(rsize);
+      if(rindex == index)
+        return NULL;
+
+      delete(bp,rsize);
+      insert(*(freeListp + index), bp);
+      break;
     case FREE:
+      delete(bp, size);
+      insert(*(freeListp + index), bp);
+      break;
     default:
-      fp = freeListp + index;
-      while(fp)
+      printf("Unknown Type to update free list: %d\n", type);
+      return NULL;
   }
 
   return bp;
 }
 
+static void *insert(void *lp, void *bp) {
+  if(lp == NULL)
+    return lp = bp;
+
+  while(lp < bp && GET_NEXT_FREE(lp))
+    lp = GET_NEXT_FREE(lp);
+
+  // insert bp at the last of the list
+  if(lp < bp) {
+    PUT_NEXT_FREE(lp, bp);
+    PUT_PREV_FREE(bp, lp);
+  }
+  else {
+    // Dual-Linklist insertion
+    PUT_NEXT_FREE(bp, lp);
+    PUT_PREV_FREE(bp, GET_PREV_FREE(lp));
+    PUT_PREV_FREE(lp, bp);
+  }
+
+  return lp;
+}
+
+static void *delete(void *bp, size_t newsize) {
+  void *prev, *next;
+  
+  if((prev = GET_PREV_FREE(bp)) != NULL) {
+    if((next = GET_NEXT_FREE(bp)) != NULL) {
+      PUT_NEXT_FREE(prev, next);
+      PUT_PREV_FREE(next, prev);
+    }
+    else {
+      PUT_NEXT_FREE(prev, NULL);
+    }
+  }
+  else if((next = GET_NEXT_FREE(bp)) != NULL) {
+    PUT_PREV_FREE(next, prev);
+  }
+
+  *(unsigned int *)bp = newsize;
+  PUT_NEXT_FREE(bp, 0);
+  PUT_PREV_FREE(bp, 0);
+}
+
 static void *findFit(size_t size, size_t index) {
   void *fp;
 
-  for(int i = index; *fp == NULL && i <= freeListSize; i <<= 1) {
-    for(int j = 0; *fp != NULL; j++)
-      fp = freeListp + i + j;
-  }
+  for(int i = index; fp == NULL && i <= FREE_LIST_SIZE; i++)
+    for(int j = 0; fp == NULL; j++)
+      fp = *(freeListp + i) + j;
 
   if(fp == NULL)
     fp = extend_heap(size, index);

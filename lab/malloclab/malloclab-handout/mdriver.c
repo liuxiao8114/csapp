@@ -504,10 +504,13 @@ static trace_t *read_trace(char *tracedir, char *filename)
     	unix_error(msg);
     }
 
-    fscanf(tracefile, "%d", &(trace->sugg_heapsize)); /* not used */
-    fscanf(tracefile, "%d", &(trace->num_ids));
-    fscanf(tracefile, "%d", &(trace->num_ops));
-    fscanf(tracefile, "%d", &(trace->weight));        /* not used */
+    int _i1 = fscanf(tracefile, "%d", &(trace->sugg_heapsize)); /* not used */
+    int _i2 = fscanf(tracefile, "%d", &(trace->num_ids));
+    int _i3 = fscanf(tracefile, "%d", &(trace->num_ops));
+    int _i4 = fscanf(tracefile, "%d", &(trace->weight));        /* not used */
+
+    if(_i1 == EOF || _i2 == EOF || _i3 == EOF || _i4 == EOF)
+      printf("malloc failed in read_trace as follow errors: ");
 
     /* We'll store each request line in the trace in this array */
     if ((trace->ops = (traceop_t *)malloc(trace->num_ops * sizeof(traceop_t))) == NULL)
@@ -528,21 +531,21 @@ static trace_t *read_trace(char *tracedir, char *filename)
     while (fscanf(tracefile, "%s", type) != EOF) {
       switch(type[0]) {
         case 'a':
-            fscanf(tracefile, "%u %u", &index, &size);
+            _i1 = fscanf(tracefile, "%u %u", &index, &size);
             trace->ops[op_index].type = ALLOC;
             trace->ops[op_index].index = index;
             trace->ops[op_index].size = size;
             max_index = (index > max_index) ? index : max_index;
             break;
         case 'r':
-            fscanf(tracefile, "%u %u", &index, &size);
+            _i1 = fscanf(tracefile, "%u %u", &index, &size);
             trace->ops[op_index].type = REALLOC;
             trace->ops[op_index].index = index;
             trace->ops[op_index].size = size;
             max_index = (index > max_index) ? index : max_index;
             break;
         case 'f':
-            fscanf(tracefile, "%ud", &index);
+            _i1 = fscanf(tracefile, "%ud", &index);
             trace->ops[op_index].type = FREE;
             trace->ops[op_index].index = index;
             break;

@@ -47,6 +47,3 @@ extern team_t team;
 /* Give block pointer bp, compute address of next and previous blocks */
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE((char *)bp - DSIZE))
-
-#define NEXT_FREEP(fp) (GET(fp))
-#define PREV_FREEP(fp) (GET(fp))
