@@ -37,7 +37,7 @@ extern team_t team;
 #define MAX(x, y) (x) > (y) ? (x) : (y)
 
 /* Read the size and allocated fields from address p */
-#define GET_SIZE(p) (GET(p) | ~0x7)
+#define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
 
 /* Give block pointer bp, compute address of its header and footer */

@@ -31,7 +31,7 @@
 #define LINENUM(i) (i+5) /* cnvt trace request nums to linenums (origin 1) */
 
 /* Returns true if p is ALIGNMENT-byte aligned */
-#define IS_ALIGNED(p)  ((((unsigned int)(p)) % ALIGNMENT) == 0)
+#define IS_ALIGNED(p)  ((((size_t)(p)) % ALIGNMENT) == 0)
 
 /******************************
  * The key compound data types
@@ -482,8 +482,12 @@ static trace_t *read_trace(char *tracedir, char *filename)
 {
     FILE *tracefile;
     trace_t *trace;
+
+    char* ERR_OPEN_MSG = "Could not open %s in read_trace";
+    int ERR_OPEN_MSG_LEN = strlen(ERR_OPEN_MSG);
+
     char type[MAXLINE];
-    char path[MAXLINE];
+    char path[MAXLINE - ERR_OPEN_MSG_LEN];
     unsigned index, size;
     unsigned max_index = 0;
     unsigned op_index;
@@ -500,7 +504,7 @@ static trace_t *read_trace(char *tracedir, char *filename)
     strcat(path, filename);
 
     if ((tracefile = fopen(path, "r")) == NULL) {
-    	sprintf(msg, "Could not open %s in read_trace", path);
+    	sprintf(msg, ERR_OPEN_MSG, path);
     	unix_error(msg);
     }
 

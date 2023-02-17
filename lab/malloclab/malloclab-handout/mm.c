@@ -47,8 +47,8 @@ team_t team = {
 #define GET_FREE_SIZE(fp) (*(unsigned int *) (fp))
 #define GET_NEXT_FREE(fp) ((char *)(fp) + ALIGNMENT)
 #define GET_PREV_FREE(fp) ((char *)(fp) + ALIGNMENT * 2)
-#define PUT_NEXT_FREE(fp, val) (*(unsigned int *)(fp + ALIGNMENT) = (val))
-#define PUT_PREV_FREE(fp, val) (*(unsigned int *)(fp + ALIGNMENT * 2) = (val))
+#define PUT_NEXT_FREE(fp, val) (*(void **)(fp + ALIGNMENT) = (val))
+#define PUT_PREV_FREE(fp, val) (*(void **)(fp + ALIGNMENT * 2) = (val))
 
 /* global heap pointer */
 static void *heapListp;
@@ -59,12 +59,12 @@ static void **freeListp;
 enum { INIT, FREE, ALLOC, REALLOC, EXTEND } MM_CHECK_TYPE;
 
 static void *extend_heap(size_t size, size_t index);
-static void mm_check(int type);
+static void mm_check(int, size_t);
 static void *coalesce(void *bp);
 static size_t getFreeListIndex(size_t size);
 static void *update(void *bp, size_t size, size_t type);
 static void *insert(void *lp, void *bp);
-static void *delete(void *bp, size_t newsize);
+static void delete(void *bp, size_t newsize);
 static void *findFit(size_t size, size_t index);
 
 /*
@@ -83,6 +83,8 @@ int mm_init(void) {
   PUT(heapListp + 35*WSIZE, PACK(0, 1));     /* Epilogue header */
   heapListp += 34*WSIZE;
 
+  mm_check(INIT, 0);
+
   size_t size = CHUNKSIZE / WSIZE;
   if(extend_heap(size, getFreeListIndex(size)) == NULL)
     return -1;
@@ -95,7 +97,7 @@ int mm_init(void) {
  *     Always allocate a block whose size is a multiple of the alignment.
  */
 void *mm_malloc(size_t size) {
-  size_t asize = ALIGN(size + MIN_SIZE);
+  size_t asize = ALIGN(size);
   char *p = findFit(asize, getFreeListIndex(asize));
 
   if (p == NULL)
@@ -123,7 +125,7 @@ void mm_free(void *ptr) {
 
 static void *extend_heap(size_t size, size_t index) {
   char *bp;
-  size_t asize = ALIGN(size + MIN_SIZE);
+  size_t asize = ALIGN(size);
 
   if ((long)(bp = mem_sbrk(asize)) == -1)
     return NULL;
@@ -133,7 +135,7 @@ static void *extend_heap(size_t size, size_t index) {
   PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));  /* Epilogue */
 
   insert(*(freeListp + index), bp);
-  mm_check(EXTEND);
+  mm_check(EXTEND, asize);
 
   return coalesce(bp);
 }
@@ -141,8 +143,35 @@ static void *extend_heap(size_t size, size_t index) {
 /*
  * init_freeListp - init explicit segregated free list by given size type.
  */
-static void mm_check(int type) {
-  printf("mm_check: %d\n", type);
+static void mm_check(int type, size_t size) {
+  switch (type) {
+    case INIT:
+      printf("mm_check: INIT\n");
+      printf("heapListp start at addr: %p\n", heapListp);
+      printf("freeListp start at addr: %p\n", freeListp);
+      printf("mm_check end\n");
+      break;
+    case FREE:
+      printf("mm_check: FREE\n");
+      printf("mm_check end\n");
+      break;
+    case ALLOC:
+      printf("mm_check: ALLOC\n");
+      printf("mm_check end\n");
+      break;
+    case REALLOC:
+      printf("mm_check: REALLOC\n");
+      printf("mm_check end\n");
+      break;
+    case EXTEND:
+      printf("mm_check: EXTEND\n");
+      printf("  EXTEND: %ld\n", size);
+      printf("mm_check end\n");
+      break;
+    default:
+      printf("Unknown mm_check type: %d\n", type);
+      printf("mm_check end\n");
+  }
 }
 
 /*
@@ -204,7 +233,7 @@ static void *update(void *bp, size_t size, size_t type) {
       insert(*(freeListp + index), bp);
       break;
     default:
-      printf("Unknown Type to update free list: %d\n", type);
+      printf("Unknown Type to update free list: %ld\n", type);
       return NULL;
   }
 
@@ -233,9 +262,9 @@ static void *insert(void *lp, void *bp) {
   return lp;
 }
 
-static void *delete(void *bp, size_t newsize) {
+static void delete(void *bp, size_t newsize) {
   void *prev, *next;
-  
+
   if((prev = GET_PREV_FREE(bp)) != NULL) {
     if((next = GET_NEXT_FREE(bp)) != NULL) {
       PUT_NEXT_FREE(prev, next);
