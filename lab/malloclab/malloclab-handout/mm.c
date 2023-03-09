@@ -55,6 +55,8 @@ static void *heapListp;
 /* explicit free list: pointer to free block */
 static void **freeListp;
 
+// static unsigned aCount = 0;
+
 enum { INIT, FREE, ALLOC, REALLOC, EXTEND, FREE_INSERT, FREE_UPDATE, FREE_DELETE } MM_CHECK_TYPE;
 
 static void *extend_heap(size_t size);
@@ -118,7 +120,7 @@ void *mm_malloc(size_t size) {
     insert(sp);
   }
 
-  mm_check(ALLOC, p, psize);
+  // mm_check(ALLOC, p, psize);
 
   return p;
 }
@@ -128,7 +130,7 @@ void *mm_malloc(size_t size) {
  */
 void mm_free(void *ptr) {
   size_t size = GET_SIZE(HDRP(ptr));
-  mm_check(FREE, ptr, size);
+  // mm_check(FREE, ptr, size);
 
   PUT(HDRP(ptr), PACK(size, 0));
   PUT(FTRP(ptr), PACK(size, 0));
@@ -155,7 +157,6 @@ static void *extend_heap(size_t size) {
  * init_freeListp - init explicit segregated free list by given size type.
  */
 static void mm_check(unsigned char type, void *bp, size_t asize) {
-  printf("------------------------------------------------\n");
   switch (type) {
     case INIT:
       printf("mm_check: INIT\n");
@@ -164,17 +165,10 @@ static void mm_check(unsigned char type, void *bp, size_t asize) {
       printf("mm_check: INIT end\n");
       break;
     case FREE:
-      printf("mm_check: FREE\n");
-      printf(" HDRP addr(GET_SIZE)     : %p(%d)\n", HDRP(bp), GET_SIZE(HDRP(bp)));
-      printf(" FTRP addr(GET_SIZE)     : %p(%d)\n", FTRP(bp), GET_SIZE(FTRP(bp)));
-      printf("mm_check end\n");
+      printf("F[%3u]: %p(%d), %p(%d)\n", aCount, HDRP(bp), GET_SIZE(HDRP(bp)), FTRP(bp), GET_SIZE(FTRP(bp)));
       break;
     case ALLOC:
-      printf("mm_check: ALLOC\n");
-      printf(" alloc at addr(fit size) : %p(%ld)\n", bp, asize);
-      printf(" HDRP addr(GET_SIZE)     : %p(%d)\n", HDRP(bp), GET_SIZE(HDRP(bp)));
-      printf(" FTRP addr(GET_SIZE)     : %p(%d)\n", FTRP(bp), GET_SIZE(FTRP(bp)));
-      printf("mm_check end\n");
+      printf("A[%3u]: %p(%ld), %p(%d), %p(%d)\n", aCount++, bp, asize, HDRP(bp), GET_SIZE(HDRP(bp)), FTRP(bp), GET_SIZE(FTRP(bp)));
       break;
     case REALLOC:
       printf("mm_check: REALLOC\n");
@@ -193,7 +187,6 @@ static void mm_check(unsigned char type, void *bp, size_t asize) {
       printf("mm_check: UNKNOWN[%d]\n", type);
       printf("mm_check: UNKNOWN end\n");
   }
-  printf("------------------------------------------------\n");
 }
 
 /*
@@ -205,25 +198,19 @@ static void *coalesce(void *bp) {
   size_t currentSize, newSize;
 
   if(GET_ALLOC(HDRP(prev))) {
-    if(GET_ALLOC(HDRP(next))) {
-      // printf("coalesce pattern [1]: Both prev and next are allocated.\n");
+    if(GET_ALLOC(HDRP(next)))
       return insert(bp);
-    }
 
     newSize = GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(next));
     delete(next);
     PUT(HDRP(bp), PACK(newSize, 0));
     PUT(FTRP(bp), PACK(newSize, 0));
-    // printf("coalesce pattern [2]: Prev is allocated and next is free.\n");
     return insert(bp);
   }
 
-  if(GET_ALLOC(HDRP(next))) {
-    // printf("coalesce pattern [3]: Next is allocated and prev is free.\n");
+  if(GET_ALLOC(HDRP(next)))
     newSize = GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(prev));
-  }
   else {
-    // printf("coalesce pattern [4]: Both prev and next are free.\n");
     newSize = GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(prev)) + GET_SIZE(HDRP(next));
     delete(next);
   }
@@ -248,16 +235,13 @@ static char getFreeListIndex(size_t base) {
   return x;
 }
 
-static void *update(void *bp, size_t current, size_t next) {
-  char currentIndex = getFreeListIndex(current);
-  char nextIndex = getFreeListIndex(next);
-
-  // printf("update(freeList[%d] -> freeList[%d]: %p)\n", currentIndex, nextIndex, bp);
+static void *update(void *bp, size_t currentSize, size_t nextSize) {
+  char currentIndex = getFreeListIndex(currentSize);
+  char nextIndex = getFreeListIndex(nextSize);
 
   // If next and current in the diff freeList, delete current first.
   if(nextIndex != currentIndex) {
     void *prev, *next;
-    // printf(" delete(freeList[%d]: %p)\n", currentIndex, bp);
 
     if(currentIndex > 1) {
       // NOT the first element in freeList
@@ -285,7 +269,7 @@ static void *update(void *bp, size_t current, size_t next) {
       char *lp = *(freeListp + currentIndex);
 
       if(lp == bp)
-        *(freeListp + currentIndex) = NULL;
+        *(freeListp + currentIndex) = GET_NEXT_FREE(bp);
       else {
         while(GET_NEXT_FREE(lp) != bp)
           lp = GET_NEXT_FREE(lp);
@@ -302,30 +286,40 @@ static void *update(void *bp, size_t current, size_t next) {
     PUT_NEXT_FREE(bp, NULL);
     if(nextIndex > 1)
       PUT_PREV_FREE(bp, NULL);
-    // printf(
-    //   " init freeList[%d] at [%p]:[%p]\n",
-    //   nextIndex, freeListp + nextIndex, bp
-    // );
     return *(freeListp + nextIndex) = bp;
   }
 
+  // free block size > 1
   if(nextIndex > 1) {
-    if(lp != bp) {
+    // NOT insert in the first
+    if(lp < bp) {
       while(lp < bp && GET_NEXT_FREE(lp))
         lp = GET_NEXT_FREE(lp);
-
-      // insert bp as the last element
+      // insert in the last
       if(lp < bp) {
         PUT_NEXT_FREE(lp, bp);
         PUT_PREV_FREE(bp, lp);
         PUT_NEXT_FREE(bp, NULL);
-      } else {
-        // Dual-Linklist insertion
+      }
+      // insert in the middle
+      else if(lp > bp) {
+        PUT_NEXT_FREE(GET_PREV_FREE(lp), bp);
         PUT_NEXT_FREE(bp, lp);
         PUT_PREV_FREE(bp, GET_PREV_FREE(lp));
         PUT_PREV_FREE(lp, bp);
       }
+      // else
+      //   printf("[WARNING][1]: do nothing in update(%p), am I deleted sth:%d\n", bp, nextIndex == currentIndex);
     }
+    // insert in the first
+    else if(lp > bp) {
+      PUT_NEXT_FREE(bp, lp);
+      PUT_PREV_FREE(lp, bp);
+      PUT_PREV_FREE(bp, NULL);
+      *(freeListp + nextIndex) = bp;
+    }
+    // else
+    //   printf("[WARNING][2]: do nothing in update(%p), am I deleted sth:%d\n", bp, nextIndex == currentIndex);
   }
   // free block size = 1
   else {
@@ -340,19 +334,16 @@ static void *insert(void *bp) {
   char index = getFreeListIndex(GET_SIZE(HDRP(bp)));
   void *lp = *(freeListp + index);
 
-  // printf("insert(freeList[%d]: %p)\n", index, bp);
-
   if(lp == NULL) {
     PUT_NEXT_FREE(bp, NULL);
     if(index > 1)
       PUT_PREV_FREE(bp, NULL);
-    // printf(" init freeList[%d] at [%p]:[%p]\n", index, freeListp + index, bp);
     return *(freeListp + index) = bp;
   }
 
   // free block size > 1 that has enough space to save dual-linkes(prev and next)
   if(index > 1) {
-    if(lp != bp) {
+    if(lp < bp) {
       while(lp < bp && GET_NEXT_FREE(lp))
         lp = GET_NEXT_FREE(lp);
 
@@ -361,13 +352,26 @@ static void *insert(void *bp) {
         PUT_NEXT_FREE(lp, bp);
         PUT_PREV_FREE(bp, lp);
         PUT_NEXT_FREE(bp, NULL);
-      } else {
+      }
+      else if(lp > bp) {
         // Dual-Linklist insertion
+        PUT_NEXT_FREE(GET_PREV_FREE(lp), bp);
         PUT_NEXT_FREE(bp, lp);
         PUT_PREV_FREE(bp, GET_PREV_FREE(lp));
         PUT_PREV_FREE(lp, bp);
       }
+      // else
+      //   printf("[WARNING][1]: do nothing in insert(%p)\n", bp);
     }
+    // insert in the first
+    else if(lp > bp) {
+      PUT_NEXT_FREE(bp, lp);
+      PUT_PREV_FREE(lp, bp);
+      PUT_PREV_FREE(bp, NULL);
+      *(freeListp + index) = bp;
+    }
+    // else
+    //   printf("[WARNING][2]: do nothing in insert(%p)\n", bp);
   }
   // free block size = 1
   else {
@@ -381,8 +385,6 @@ static void *insert(void *bp) {
 static void delete(void *bp) {
   void *prev, *next;
   char index = getFreeListIndex(GET_SIZE(HDRP(bp)));
-
-  // printf("delete(freeList[%d]: %p)\n", index, bp);
 
   if(index > 1) {
     // NOT the first element in freeList
@@ -414,7 +416,7 @@ static void delete(void *bp) {
     char *lp = *(freeListp + index);
 
     if(lp == bp)
-      *(freeListp + index) = NULL;
+      *(freeListp + index) = GET_NEXT_FREE(bp);
     else {
       while(GET_NEXT_FREE(lp) != bp)
         lp = GET_NEXT_FREE(lp);
@@ -429,8 +431,6 @@ static void delete(void *bp) {
 static void deleteWithSize(void *bp, size_t size) {
   void *prev, *next;
   char index = getFreeListIndex(size);
-
-  // printf("delete(freeList[%d]: %p)\n", index, bp);
 
   if(index > 1) {
     // NOT the first element in freeList
