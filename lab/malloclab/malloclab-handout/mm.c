@@ -55,7 +55,7 @@ static void *heapListp;
 /* explicit free list: pointer to free block */
 static void **freeListp;
 
-// static unsigned aCount = 0;
+static unsigned aCount = 0;
 
 enum { INIT, FREE, ALLOC, REALLOC, EXTEND, FREE_INSERT, FREE_UPDATE, FREE_DELETE } MM_CHECK_TYPE;
 
@@ -65,8 +65,7 @@ static void *coalesce(void *bp);
 static char getFreeListIndex(size_t size);
 static void *update(void *bp, size_t csize, size_t nsize);
 static void *insert(void *);
-static void delete(void *);
-static void deleteWithSize(void *, size_t);
+static void delete(void *, size_t);
 static void *findFit(size_t);
 
 /*
@@ -88,7 +87,6 @@ int mm_init(void) {
   PUT(heapListp + FREE_LIST_SIZE * ALIGNMENT + 3*WSIZE, PACK(0, 1));     /* Epilogue header */
   heapListp += (FREE_LIST_SIZE * ALIGNMENT + 2*WSIZE);
 
-  // mm_check(INIT, NULL, 0);
   if(extend_heap(CHUNKSIZE) == NULL)
     return -1;
 
@@ -102,22 +100,25 @@ int mm_init(void) {
 void *mm_malloc(size_t size) {
   size_t asize = ALIGN(size);
   char *p = findFit(asize);
+  int nleft;
 
   if (p == NULL)
     return NULL;
 
   size_t psize = GET_SIZE(HDRP(p));
 
-  delete(p);
+  delete(p, psize);
   PUT(HDRP(p), PACK(asize, 1));
   PUT(FTRP(p), PACK(asize, 1));
 
   // Splitting
-  if(psize > asize) {
+  if((nleft = psize - asize) > 0) {
     char *sp = NEXT_BLKP(p);
-    PUT(HDRP(sp), PACK(psize - asize, 0));
-    PUT(FTRP(sp), PACK(psize - asize, 0));
-    insert(sp);
+    PUT(HDRP(sp), PACK(nleft, 0));
+    PUT(FTRP(sp), PACK(nleft, 0));
+
+    if(nleft >= MIN_SIZE)
+      insert(sp);
   }
 
   // mm_check(ALLOC, p, psize);
@@ -143,13 +144,10 @@ static void *extend_heap(size_t size) {
   if ((long)(bp = mem_sbrk(size)) == -1)
     return NULL;
 
-  // printf("extend_heap(%p: %ld)\n", bp, size);
-
   PUT(HDRP(bp), PACK(size, 0));         /* Block header */
   PUT(FTRP(bp), PACK(size, 0));         /* Block footer */
-  PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));  /* Epilogue */
+  PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); /* Epilogue */
 
-  // mm_check(EXTEND, bp, size);
   return coalesce(bp);
 }
 
@@ -195,14 +193,18 @@ static void mm_check(unsigned char type, void *bp, size_t asize) {
 static void *coalesce(void *bp) {
   void *prev = PREV_BLKP(bp);
   void *next = NEXT_BLKP(bp);
-  size_t currentSize, newSize;
+  size_t tempSize, newSize;
 
   if(GET_ALLOC(HDRP(prev))) {
     if(GET_ALLOC(HDRP(next)))
       return insert(bp);
 
-    newSize = GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(next));
-    delete(next);
+    tempSize = GET_SIZE(HDRP(next));
+    newSize = GET_SIZE(HDRP(bp)) + tempSize;
+
+    if(tempSize >= MIN_SIZE)
+      delete(next, tempSize);
+
     PUT(HDRP(bp), PACK(newSize, 0));
     PUT(FTRP(bp), PACK(newSize, 0));
     return insert(bp);
@@ -211,14 +213,17 @@ static void *coalesce(void *bp) {
   if(GET_ALLOC(HDRP(next)))
     newSize = GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(prev));
   else {
-    newSize = GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(prev)) + GET_SIZE(HDRP(next));
-    delete(next);
+    tempSize = GET_SIZE(HDRP(next));
+    newSize = GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(prev)) + tempSize;
+
+    if(tempSize >= MIN_SIZE)
+      delete(next, tempSize);
   }
 
-  currentSize = GET_SIZE(HDRP(prev));
+  tempSize = GET_SIZE(HDRP(prev));
   PUT(HDRP(prev), PACK(newSize, 0));
   PUT(FTRP(prev), PACK(newSize, 0));
-  return update(prev, currentSize, newSize);
+  return update(prev, tempSize, newSize);
 }
 
 static char getFreeListIndex(size_t base) {
@@ -229,15 +234,13 @@ static char getFreeListIndex(size_t base) {
     x++;
   }
 
-  if(x == 0)
-    printf("[WARNING]: getFreeListIndex() will return 0, which would cause some unexpect bugs.\n");
-
   return x;
 }
 
 static void *update(void *bp, size_t currentSize, size_t nextSize) {
   char currentIndex = getFreeListIndex(currentSize);
   char nextIndex = getFreeListIndex(nextSize);
+  void *lp;
 
   // If next and current in the diff freeList, delete current first.
   if(nextIndex != currentIndex) {
@@ -265,8 +268,8 @@ static void *update(void *bp, size_t currentSize, size_t nextSize) {
         *(freeListp + currentIndex) = NULL;
     }
     // free block size = 1
-    else {
-      char *lp = *(freeListp + currentIndex);
+    else if (currentIndex == 1) {
+      lp = *(freeListp + currentIndex);
 
       if(lp == bp)
         *(freeListp + currentIndex) = GET_NEXT_FREE(bp);
@@ -279,7 +282,7 @@ static void *update(void *bp, size_t currentSize, size_t nextSize) {
     }
   }
 
-  void *lp = *(freeListp + nextIndex);
+  lp = *(freeListp + nextIndex);
 
   // If next freeList is not initialized yet, init it with bp.
   if(lp == NULL) {
@@ -308,8 +311,6 @@ static void *update(void *bp, size_t currentSize, size_t nextSize) {
         PUT_PREV_FREE(bp, GET_PREV_FREE(lp));
         PUT_PREV_FREE(lp, bp);
       }
-      // else
-      //   printf("[WARNING][1]: do nothing in update(%p), am I deleted sth:%d\n", bp, nextIndex == currentIndex);
     }
     // insert in the first
     else if(lp > bp) {
@@ -318,8 +319,6 @@ static void *update(void *bp, size_t currentSize, size_t nextSize) {
       PUT_PREV_FREE(bp, NULL);
       *(freeListp + nextIndex) = bp;
     }
-    // else
-    //   printf("[WARNING][2]: do nothing in update(%p), am I deleted sth:%d\n", bp, nextIndex == currentIndex);
   }
   // free block size = 1
   else {
@@ -360,8 +359,6 @@ static void *insert(void *bp) {
         PUT_PREV_FREE(bp, GET_PREV_FREE(lp));
         PUT_PREV_FREE(lp, bp);
       }
-      // else
-      //   printf("[WARNING][1]: do nothing in insert(%p)\n", bp);
     }
     // insert in the first
     else if(lp > bp) {
@@ -370,65 +367,19 @@ static void *insert(void *bp) {
       PUT_PREV_FREE(bp, NULL);
       *(freeListp + index) = bp;
     }
-    // else
-    //   printf("[WARNING][2]: do nothing in insert(%p)\n", bp);
   }
   // free block size = 1
-  else {
+  else if(index == 1) {
     PUT_NEXT_FREE(bp, lp);
     *(freeListp + index) = bp;
   }
+  else
+    *(freeListp + index) = bp;
 
   return bp;
 }
 
-static void delete(void *bp) {
-  void *prev, *next;
-  char index = getFreeListIndex(GET_SIZE(HDRP(bp)));
-
-  if(index > 1) {
-    // NOT the first element in freeList
-    if((prev = GET_PREV_FREE(bp)) != NULL) {
-      // has next
-      if((next = GET_NEXT_FREE(bp)) != NULL) {
-        PUT_NEXT_FREE(prev, next);
-        PUT_PREV_FREE(next, prev);
-      }
-      // the last element in freeList
-      else
-        PUT_NEXT_FREE(prev, NULL);
-    }
-    // the first element in freeList
-    else {
-      // has next
-      if((next = GET_NEXT_FREE(bp)) != NULL) {
-        PUT_PREV_FREE(next, NULL);
-        *(freeListp + index) = next;
-      }
-      // the ONLY one in freeList
-      else
-        *(freeListp + index) = NULL;
-    }
-
-    PUT_NEXT_FREE(bp, NULL);
-    PUT_PREV_FREE(bp, NULL);
-  } else {
-    char *lp = *(freeListp + index);
-
-    if(lp == bp)
-      *(freeListp + index) = GET_NEXT_FREE(bp);
-    else {
-      while(GET_NEXT_FREE(lp) != bp)
-        lp = GET_NEXT_FREE(lp);
-
-      PUT_NEXT_FREE(lp, GET_NEXT_FREE(bp));
-    }
-
-    PUT_NEXT_FREE(bp, NULL);
-  }
-}
-
-static void deleteWithSize(void *bp, size_t size) {
+static void delete(void *bp, size_t size) {
   void *prev, *next;
   char index = getFreeListIndex(size);
 
@@ -462,7 +413,7 @@ static void deleteWithSize(void *bp, size_t size) {
     char *lp = *(freeListp + index);
 
     if(lp == bp)
-      *(freeListp + index) = NULL;
+      *(freeListp + index) = GET_NEXT_FREE(bp);
     else {
       while(GET_NEXT_FREE(lp) != bp)
         lp = GET_NEXT_FREE(lp);
