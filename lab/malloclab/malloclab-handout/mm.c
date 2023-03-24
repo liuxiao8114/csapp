@@ -57,7 +57,8 @@ static void **freeListp;
 
 static unsigned aCount = 0;
 
-enum { INIT, FREE, ALLOC, REALLOC, EXTEND, FREE_INSERT, FREE_UPDATE, FREE_DELETE } MM_CHECK_TYPE;
+enum { FREE, ALLOC, REALLOC, EXTEND } MM_CHECK_TYPE;
+enum { UNKNOWN, NONE, PREV, NEXT, BOTH } COALESCE_TYPE;
 
 static void *extend_heap(size_t size);
 static void mm_check(unsigned char, void *, size_t);
@@ -67,6 +68,8 @@ static void *update(void *bp, size_t csize, size_t nsize);
 static void *insert(void *);
 static void delete(void *, size_t);
 static void *findFit(size_t);
+static void *findReallocFit(void *bp, size_t psize, size_t asize);
+static void *updateRe(void *bp, size_t currentSize, size_t nextSize, char type);
 
 /*
  * mm_init - initialize the malloc package.
@@ -106,8 +109,8 @@ void *mm_malloc(size_t size) {
     return NULL;
 
   size_t psize = GET_SIZE(HDRP(p));
-
   delete(p, psize);
+
   PUT(HDRP(p), PACK(asize, 1));
   PUT(FTRP(p), PACK(asize, 1));
 
@@ -156,21 +159,14 @@ static void *extend_heap(size_t size) {
  */
 static void mm_check(unsigned char type, void *bp, size_t asize) {
   switch (type) {
-    case INIT:
-      printf("mm_check: INIT\n");
-      printf(" heapListp start at addr: %p\n", heapListp);
-      printf(" freeListp start at addr: %p\n", freeListp);
-      printf("mm_check: INIT end\n");
-      break;
     case FREE:
-      printf("F[%3u]: %p(%d), %p(%d)\n", aCount, HDRP(bp), GET_SIZE(HDRP(bp)), FTRP(bp), GET_SIZE(FTRP(bp)));
+      printf("F[%3u]: %p(%d), %p(%d)\n", aCount-1, HDRP(bp), GET_SIZE(HDRP(bp)), FTRP(bp), GET_SIZE(FTRP(bp)));
       break;
     case ALLOC:
       printf("A[%3u]: %p(%ld), %p(%d), %p(%d)\n", aCount++, bp, asize, HDRP(bp), GET_SIZE(HDRP(bp)), FTRP(bp), GET_SIZE(FTRP(bp)));
       break;
     case REALLOC:
-      printf("mm_check: REALLOC\n");
-      printf("mm_check end\n");
+      printf("R[%3u]: %p(%ld), %p(%d), %p(%d)\n", aCount-1, bp, asize, HDRP(bp), GET_SIZE(HDRP(bp)), FTRP(bp), GET_SIZE(FTRP(bp)));
       break;
     case EXTEND:
       printf("mm_check: EXTEND\n");
@@ -226,9 +222,9 @@ static void *coalesce(void *bp) {
   return update(prev, tempSize, newSize);
 }
 
+// TODO: try sth here!
 static char getFreeListIndex(size_t base) {
   char x = 0;
-
   while(base >= MIN_SIZE) {
     base >>= 1;
     x++;
@@ -369,17 +365,18 @@ static void *insert(void *bp) {
     }
   }
   // free block size = 1
-  else if(index == 1) {
+  else {
     PUT_NEXT_FREE(bp, lp);
     *(freeListp + index) = bp;
   }
-  else
-    *(freeListp + index) = bp;
 
   return bp;
 }
 
 static void delete(void *bp, size_t size) {
+  if(size < MIN_SIZE)
+    return;
+
   void *prev, *next;
   char index = getFreeListIndex(size);
 
@@ -426,33 +423,123 @@ static void delete(void *bp, size_t size) {
 }
 
 static void *findFit(size_t size) {
-  for(char i = getFreeListIndex(size); i < FREE_LIST_SIZE; i++) {
-    if(*(freeListp + i) != NULL) {
-      for(char *fp = *(freeListp + i); fp != NULL; fp = GET_NEXT_FREE(fp)) {
+  for(char i = getFreeListIndex(size); i < FREE_LIST_SIZE; i++)
+    if(*(freeListp + i) != NULL)
+      for(char *fp = *(freeListp + i); fp != NULL; fp = GET_NEXT_FREE(fp))
         if(GET_SIZE(HDRP(fp)) >= size)
           return fp;
-      }
-    }
-  }
 
   return extend_heap(size);
 }
 
-/*
- * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
- */
-void *mm_realloc(void *ptr, size_t size) {
-  void *oldptr = ptr;
-  void *newptr;
-  size_t copySize;
+void *mm_realloc(void *p, size_t size) {
+  // mm_check(REALLOC, p, size);
+  if(p == NULL)
+    return mm_malloc(size);
+  if(size == 0) {
+    mm_free(p);
+    return p;
+  }
 
-  newptr = mm_malloc(size);
-  if (newptr == NULL)
+  size_t currentSize = GET_SIZE(HDRP(p));
+  size_t asize = ALIGN(size);
+
+  // if the new size < psize, takes the original p as found
+  if(currentSize > asize)
+    return findReallocFit(p, currentSize, asize);
+
+  if(currentSize < asize) {
+    void *prev = PREV_BLKP(p);
+    void *next = NEXT_BLKP(p);
+    size_t newSize;
+
+    if(GET_ALLOC(HDRP(prev))) {
+      // Case1: prev and next both alloced.
+      if(GET_ALLOC(HDRP(next)))
+        return updateRe(p, currentSize, asize, NONE);
+
+      newSize = currentSize + GET_SIZE(HDRP(next));
+      // Case2-1: next is free but doesn't have enough size.
+      if(newSize < asize)
+        return updateRe(p, currentSize, asize, NEXT);
+
+      // Case2-2: next is free and enough for realloc.
+      delete(next, GET_SIZE(HDRP(next)));
+      return findReallocFit(p, newSize, asize);
+    }
+
+    if(GET_ALLOC(HDRP(next))) {
+      newSize = currentSize + GET_SIZE(HDRP(prev));
+      // Case3-1: prev is free but doesn't have enough size.
+      if(newSize < asize)
+        return updateRe(p, currentSize, asize, PREV);
+
+      // Case3-2: prev is free and enough for realloc.
+      delete(prev, GET_SIZE(HDRP(prev)));
+      memmove(prev, p, currentSize - DSIZE);
+      findReallocFit(prev, newSize, asize);
+      return prev;
+    }
+
+    newSize = currentSize + GET_SIZE(HDRP(prev)) + GET_SIZE(HDRP(next));
+    if(newSize < asize)
+      return updateRe(p, currentSize, asize, BOTH);
+
+    delete(prev, GET_SIZE(HDRP(prev)));
+    delete(next, GET_SIZE(HDRP(next)));
+    memmove(prev, p, currentSize - DSIZE);
+    findReallocFit(prev, newSize, asize);
+    return prev;
+  }
+
+  return p;
+}
+
+static void *findReallocFit(void *bp, size_t psize, size_t asize) {
+  ssize_t nleft;
+
+  PUT(HDRP(bp), PACK(asize, 1));
+  PUT(FTRP(bp), PACK(asize, 1));
+
+  // Splitting
+  if((nleft = psize - asize) > 0) {
+    char *sp = NEXT_BLKP(bp);
+    PUT(HDRP(sp), PACK(nleft, 0));
+    PUT(FTRP(sp), PACK(nleft, 0));
+
+    if(nleft >= MIN_SIZE)
+      insert(sp);
+  }
+
+  return bp;
+}
+
+static void *updateRe(void *bp, size_t currentSize, size_t nextSize, char type) {
+  char *newbp = mm_malloc(nextSize);
+
+  if (newbp == NULL)
     return NULL;
-  copySize = *(size_t *)((char *)oldptr - MIN_SIZE);
-  if (size < copySize)
-    copySize = size;
-  memcpy(newptr, oldptr, copySize);
-  mm_free(oldptr);
-  return newptr;
+
+  memcpy(newbp, bp, currentSize - DSIZE);
+  mm_free(bp);
+  // memset(bp, 0, currentSize - DSIZE);
+  /*
+  switch (type) {
+    case NONE:
+      PUT(HDRP(bp), PACK(asize, 0));
+      PUT(FTRP(bp), PACK(asize, 0));
+      insert(bp);
+      break;
+    case PREV:
+      break;
+    case NEXT:
+      break;
+    case BOTH:
+      break;
+    default:
+      printf("UNKNOWN type: %d\n", type);
+  }
+  */
+
+  return newbp;
 }
