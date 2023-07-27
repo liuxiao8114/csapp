@@ -1,0 +1,2 @@
+foo text file
+the second line of foo text file
