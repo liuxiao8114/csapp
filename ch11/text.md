@@ -255,3 +255,17 @@ NI_NUMERICSERV. By default, getnameinfo will look in /etc/services and if possib
 ### 11.4.8 Helper Functions for the Sockets Interface
 
 we declare clientaddr as type struct sockaddr_storage rather than struct sockaddr_in. By definition, the sockaddr_storage structure is large enough to hold any type of socket address, which keeps the code protocol-independent.
+
+## 11.5.4 Serving Dynamic Content
++ How does the client pass any program arguments to the server?
+request parameters
+
++ How does the server pass these arguments to the child process that it creates?
+
++ How does the server pass other information to the child that it might need to generate the content?
+response status
+response body
+
++ Where does the child send its output?
+
+##

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "./11.4.h"
+#include "11.4.h"
 
 void echo(int);
 
@@ -36,7 +36,8 @@ void echo(int connfd) {
 
   rio_readinitb(&rio, connfd);
   while((n = rio_readlineb(&rio, buf, MAXLINE)) > 0) {
-    printf("server received: %s\n", buf);
-    rio_written(connfd, "info client received", n);
+    printf("server received: %s", buf);
+    // rio_written(connfd, "info client received", n);
+    rio_written(connfd, buf, n);
   }
 }

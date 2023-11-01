@@ -1,0 +1,18 @@
+
+p3.69.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <test>:
+   0:	f3 0f 1e fa          	endbr64 
+   4:	48 8d 04 7f          	lea    (%rdi,%rdi,2),%rax
+   8:	48 89 c2             	mov    %rax,%rdx
+   b:	48 c1 e2 04          	shl    $0x4,%rdx
+   f:	48 63 54 16 08       	movslq 0x8(%rsi,%rdx,1),%rdx
+  14:	48 8d 14 42          	lea    (%rdx,%rax,2),%rdx
+  18:	8b 86 98 06 00 00    	mov    0x698(%rsi),%eax
+  1e:	03 06                	add    (%rsi),%eax
+  20:	48 98                	cltq   
+  22:	48 89 44 d6 10       	mov    %rax,0x10(%rsi,%rdx,8)
+  27:	c3                   	retq   

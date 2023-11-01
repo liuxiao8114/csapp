@@ -7,6 +7,13 @@ precompile(cpp) -> compile(as) -> link(ld)
 linker
 loader: load program into memory and transfer control to the program.
 
+main.c sum.c
+----------------------
+cpp main.c /tmp/main.i
+cc1 -o /tmp/main.s /tmp/main.i
+as -o /tmp/main.o /tmp/main.s
+ld -o prog /tmp/main.o /tmp/sum.o
+
 ## 7.2 Static Linking
 static linker take *a collection of relocatable object* files and command-line arguments as input and generate *a fully linked executable object* as output.
 
@@ -44,8 +51,6 @@ Setctions --- ELF header
 + ELF header: contains information that allows a linker to parse and interpret the object file. Includes
               the size of the ELF header, the object file type(relocatable, executable or shared), the machine type(x86-64 e.g.)
 
-
-
 ## 7.5 Symbol and Symbol Tables
 ### <Symbol>
 Each relocatable object module m, has a symbol table that contains information about the symbols that are defined and referenced by m.
@@ -60,7 +65,7 @@ Local procedure variables that are defined with the C static attribute are not m
 ### <Symbol tables>
 Symbol tables are built by assemblers, using symbols exported by the complier into the assembly-language .s file. An ELF symbol table is contained in the .symtab section. It contains an array of entries showed in Fig7.4:
 
-Fig7.4
+Fig7.4 ELF symbol table entry.
 ----------------------------------------------------------
 typedef struct {
 
@@ -73,10 +78,13 @@ typedef struct {
   + for executable object files, the value is an absolute run-time address.
 + size: Object size in bytes
 
-Each symbol is assigned to some section of the object file, denoted by the *section* field, which is an index into the section header table.
+Each symbol is assigned to some section of the object file, denoted by the *section* field, which is an index into the section header table. There are three special pseudosections that don't have entries in the section header table.
+  + ABS
+  + UND
+  + COMMON
 
 ## 7.6 Symbol Resolution
-Symbol resolution is astraightforward for references to local symbols that are defined in the same module as the reference.
+Symbol resolution is a straightforward for references to local symbols that are defined in the same module as the reference.
 Symbol resolution for global symbols is tricker because:
 1. When the compiler encounters a symbol that is not defined in the current module, it assumes that it is defined in some other module, generates a linker symbol table entry, and leaves it for the linker to handle.
 2. multiple object modules might define global symbols with the same name.
@@ -139,15 +147,15 @@ Relocation entries for data are placed in .rel.data.
 ```c
 typedef struct {
   long offset; // the section offset of the reference
-  long type;   // relocation type
-  long symbol; // the symbol that the modified reference should point to
+  long type: 32;   // relocation type
+       symbol: 32; // the symbol that the modified reference should point to
   long addend; // a signed constant that is used by some types of relocations to bias the value of the modified reference.
 } Elf_Rela;
 ```
 
 ELF to basic relocation types:
-R_X86_64_PC32
-R_X86_64_32
++ R_X86_64_PC32:
++ R_X86_64_32:
 
 ### 7.7.2 Relocating Symbol References
 
@@ -264,8 +272,33 @@ The basic idea
 ## 7.11 Loading and Linking Shared Libraries from Applications
 it is possible for an application to request the dynamic linker to load and link arbitrary shared libraries while the application is running, without having to link in the applications against those libraries at compile time.
 
+void *dlopen(const char *filename, int flag);
+
+The dlopen function loads and links the shared library filename. The external symbols in filename are resolved using libraries previously opened with RTLD_GLOABAL flag.
+
+
 ## 7.12 Position-Independent Code(PIC)
+
 Modern systems compile the code segments of shared modules so that they can be loaded anywhere in memory without having to be modified by the linker.
 Code that can be loaded without needing any relocations is known as PIC.
 
+#### PIC Data References
+Compilers generate PIC References to global variables by exploiting the fact that:
+no matter where we load an object module(including the share object modules) in memory,
+the data segment is always the same distance from the code segment. Thus, the distance between any instruction in the code segment
+
 GOT: Global offset table
++ GOT is created at the beginning of the data segment
++ GOT contains an 8-byte entry for each global data object
++ The compiler also generates a relocation record for each GOT for the dynamic linker relocates each GOT entry so that contains the absolute address of the object at load time
++ Each object module that references global objects has its own GOT
+
+#### PIC Function Calls
+lazy binding is implemented with an interaction between two data structures:
+GOT(global object table) and PLT(procedure linkage table)
+
++ PLT is an array of 16-byte code entries
++ Each shared library function called by the executable has it own PLT entry
++ PLT[0] is a special entry that jumps into the dynamic linker
++ PLT[1] invokes the system startup function
++ Entries starting at PLT[2] invoke functions called by the user code

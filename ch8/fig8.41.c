@@ -16,31 +16,33 @@ void sigchld_handler(int s) {
 }
 
 void sigint_handler(int s) {
-  return;
+  exit(0);
 }
 
 int main(int argc, char **argv) {
-  sigset_t mask, prev;
+  sigset_t *mask, *prev;
 
   signal(SIGCHLD, sigchld_handler);
   signal(SIGINT, sigint_handler);
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGCHLD);
+  sigemptyset(mask);
+  sigaddset(mask, SIGCHLD);
 
   while(1) {
-    sigprocmask(SIG_BLOCK, &mask, &prev);   /* block SIGCHLD */
-    if(fork() == 0)
+    sigprocmask(SIG_BLOCK, mask, prev);   /* block SIGCHLD */
+    if(fork() == 0) {
+      sleep(1);
       exit(0);
+    }
 
     pid = 0;
-    sigprocmask(SIG_SETMASK, &prev, NULL);  /* unblock SIGCHLD */
+    sigprocmask(SIG_SETMASK, prev, NULL);  /* unblock SIGCHLD */
 
     /* while-loop wait for SIGCHLD to be received which is wasteful*/
     while(!pid)
       ;
 
     /* Do some work after receiving SIGCHLD */
-    printf(".");
+    printf("done.\n");
   }
 
   exit(0);

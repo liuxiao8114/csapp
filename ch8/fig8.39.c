@@ -5,10 +5,13 @@
 #include <signal.h>
 
 #define MAXJOBS 100
+#define MAXLINE 1000
 
 struct job_t {
   int pid;
+  int jid;
   int state;
+  char cmdname[MAXLINE];
 } *jobs;
 
 void initjobs() {
@@ -34,7 +37,7 @@ void handler(int sig) {
     deletejob(pid);
     sigprocmask(SIG_SETMASK, &prev_all, NULL);
   }
-  
+
   if(errno != ECHILD)
     perror("waitpid error");
   errno = olderrno;
