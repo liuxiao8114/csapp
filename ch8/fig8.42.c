@@ -9,6 +9,18 @@
 
 volatile sig_atomic_t pid;
 
+void *Signal(int signum, void *handler)
+{
+  struct sigaction action, old_action;
+  action.sa_handler = handler;
+  action.sa_flags = SA_RESTART; /* Restart syscalls if possible */
+  sigemptyset(&action.sa_mask); /* Block sigs of type being handled */
+
+  if (sigaction(signum, &action, &old_action) < 0)
+    perror("Signal error");
+  return (old_action.sa_handler);
+}
+
 void sigchld_handler(int s) {
   int olderrno = errno;
   pid = waitpid(-1, NULL, 0);
@@ -16,30 +28,31 @@ void sigchld_handler(int s) {
 }
 
 void sigint_handler(int s) {
-  return;
+  exit(0);
 }
 
 int main(int argc, char **argv) {
   sigset_t mask, prev;
 
-  signal(SIGCHLD, sigchld_handler);
-  signal(SIGINT, sigint_handler);
+  Signal(SIGCHLD, sigchld_handler);
+  Signal(SIGINT, sigint_handler);
   sigemptyset(&mask);
   sigaddset(&mask, SIGCHLD);
 
   while(1) {
-    sigprocmask(SIG_BLOCK, &mask, &prev);   /* block SIGCHLD */
+    sigprocmask(SIG_BLOCK, &mask, &prev);    /* block SIGCHLD */
     if(fork() == 0) {
       sleep(1);
+      printf("sleep end.\n");
       exit(0);
     }
 
     pid = 0;
     /* while-loop wait for SIGCHLD to be received which is wasteful*/
     while(!pid)
-      sigsuspend(&mask);
+      sigsuspend(&prev);
 
-    sigprocmask(SIG_SETMASK, &prev, NULL);   /* block SIGCHLD */
+    sigprocmask(SIG_SETMASK, &prev, NULL);  /* unblock SIGCHLD */
     /* Do some work after receiving SIGCHLD */
     printf("done.\n");
   }
