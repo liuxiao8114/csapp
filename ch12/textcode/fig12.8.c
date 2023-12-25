@@ -1,8 +1,11 @@
+/* Figure 12.8 Concurrent echo server based on I/O multiplexing */
+#include "12.h"
 
 typedef struct {
   int maxfd;
   fd_set read_set;
   fd_set ready_set;
+  int nready;
   int maxi;
   int clientfd[FD_SETSIZE];
   rio_t clientrio[FD_SETSIZE];
@@ -10,10 +13,9 @@ typedef struct {
 
 void init_pool(int, Pool *);
 
-
 int byte_cnt = 0;
 
-int main() {
+int main(int argc, char *argv[]) {
   int listenfd, connfd;
   socklen_t clientlen;
   struct sockaddr_storage clientaddr;
@@ -24,23 +26,61 @@ int main() {
     exit(0);
   }
 
-  listenfd = Open_listenfd(argv[1]);
+  listenfd = open_listenfd(argv[1]);
   init_pool(listenfd, &pool);
 
   while(1) {
     pool.ready_set = pool.read_set;
     pool.nready = select(pool.maxfd + 1, &pool.ready_set, NULL, NULL, NULL);
+
+    /* If the listenfd is ready, add the client into pool.*/
+    if(FD_ISSET(listenfd, &pool.ready_set)) {
+      clientlen = sizeof(struct sockaddr_storage);
+      connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
+      add_client(connfd, &pool);
+    }
+
+    check_clients(&pool);
   }
 }
 
+/* Figure 12.9 init_pool initializes the pool of active clients. */
 void init_pool(int fd, Pool *p) {
-  for() {
-    
+  int i;
+  p->maxi = -1;
+  for(i = 0; i < FD_SETSIZE; i++)
+    p->clientfd[i] = -1;
+
+  p->maxfd = fd;
+  FD_ZERO(&p->read_set);
+  FD_SET(fd, &p->read_set);
+}
+
+/* Figure 12.10 add_client adds a new client connection to the pool. */
+void add_client(int connfd, Pool *p) {
+  int i;
+  p->nready--;
+
+  for (i = 0; i < FD_SETSIZE; i++) { /* Find an available slot */
+    if(p->clientfd[i] < 0) {
+      p->clientfd[i] = connfd;
+      FD_SET(connfd, &p->read_set);
+    }
   }
 
-  p->maxfd = listenfd;
-  FD_ZERO(&p->read_set);
-  FD_SET(listen, p->read_set);
+  if(i == FD_SETSIZE)
+    app_error("add_client error: Too many clients");
+}
+
+/* Figure 12.11 check_clients services ready client connections */
+void check_clients(Pool *p) {
+  int i, connfd, n;
+  char buf[MAXLINE];
+  rio_t rio;
+
+  for(i = 0; i < ) {
+    
+  }
 }
 
 /*
@@ -58,18 +98,15 @@ void init_pool(int fd, Pool *p) {
  init_pool(listenfd, &pool);
 
  while (1) {
- /* Wait for listening/connected descriptor(s) to become ready */
  pool.ready_set = pool.read_set;
  pool.nready = Select(pool.maxfd+1, &pool.ready_set, NULL, NULL, NULL);
 
- /* If listening descriptor ready, add new client to pool */
  if (FD_ISSET(listenfd, &pool.ready_set)) {
  clientlen = sizeof(struct sockaddr_storage);
  connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
  add_client(connfd, &pool);
  }
 
- /* Echo a text line from each ready connected descriptor */
  check_clients(&pool);
  }
  }

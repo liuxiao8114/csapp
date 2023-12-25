@@ -1,8 +1,22 @@
 /* Figure 12.5 Concurrent echo server based on processes */
-#include <stdio.h>
-#include "./11.4.h"
+#include <sys/wait.h>
+#include "./12.h"
 
-void echo(int);
+void sigchld_handler(int);
+typedef void handler_t(int);
+
+handler_t *Signal(int sig, handler_t *handler) {
+  struct sigaction action, old_action;
+
+  action.sa_handler = handler;
+  sigemptyset(&action.sa_mask);
+  action.sa_flags = SA_RESTART;
+
+  if(sigaction(sig, &action, &old_action) < 0)
+    perror("Signal error");
+
+  return old_action.sa_handler;
+}
 
 void sigchld_handler(int sig) {
   while (waitpid(-1, 0, WNOHANG) > 0)
@@ -12,8 +26,8 @@ void sigchld_handler(int sig) {
 
 int main(int argc, char** argv) {
   int listenfd, connfd;
-  socklen_t clientlen;
   struct sockaddr_storage clientaddr;
+  socklen_t clientlen;
   char client_hostname[MAXLINE], client_port[MAXLINE];
 
   if (argc != 2) {
@@ -21,7 +35,9 @@ int main(int argc, char** argv) {
     exit(0);
   }
 
+  Signal(SIGCHLD, sigchld_handler);
   listenfd = open_listenfd(argv[1]);
+
   while(1) {
     clientlen = sizeof(struct sockaddr_storage);
     connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
@@ -29,25 +45,17 @@ int main(int argc, char** argv) {
     if(fork() == 0) {
       close(listenfd);
       getnameinfo(
-        (SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
+        (SA *)&clientaddr, clientlen,
+        client_hostname, MAXLINE,
+        client_port, MAXLINE, 0
+      );
       printf("Connected to (%s, %s)\n", client_hostname, client_port);
       echo(connfd);
-      printf("Server side connection will close.");
+      printf("Connection(%s, %s) will close.\n", client_hostname, client_port);
       close(connfd);
+      exit(0);
     }
 
     close(connfd);
-  }
-}
-
-void echo(int connfd) {
-  size_t n;
-  char buf[MAXLINE];
-  rio_t rio;
-
-  rio_readinitb(&rio, connfd);
-  while((n = rio_readlineb(&rio, buf, MAXLINE)) > 0) {
-    printf("server received: %s\n", buf);
-    rio_written(connfd, buf, n);
   }
 }

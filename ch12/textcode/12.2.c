@@ -1,7 +1,5 @@
 #include <stdio.h>
-#include "./11.4.h"
-
-void echo(int);
+#include "./12.h"
 
 int main(int argc, char** argv) {
   int listenfd, connfd;
@@ -28,16 +26,3 @@ int main(int argc, char** argv) {
 
   exit(0);
 }
-
-void echo(int connfd) {
-  size_t n;
-  char buf[MAXLINE];
-  rio_t rio;
-
-  rio_readinitb(&rio, connfd);
-  while((n = rio_readlineb(&rio, buf, MAXLINE)) > 0) {
-    printf("server received: %s\n", buf);
-    rio_written(connfd, buf, n);
-  }
-}
-

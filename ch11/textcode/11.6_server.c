@@ -1,7 +1,14 @@
-#include <fcntl.h>
-#include <sys/stat.h>
+#include "11.6.h"
 
 void doit(int);
+void read_requesthdrs(rio_t *rio);
+char parse_uri(char* uri, char* filename, char* cgiargs);
+void serve_static(int fd, char *filename, int filesize);
+void serve_dynamic(int fd, char *filename, char *cgiargs);
+void get_filetype(char *filename, char *filetype);
+void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
+
+extern char **environ;
 
 int main(int argc, char **argv) {
   char client_host[MAXLINE], client_port[MAXLINE];
@@ -34,29 +41,37 @@ int main(int argc, char **argv) {
 void doit(int fd) {
   rio_t rio;
   struct stat sbuf;
+  char buf[MAXLINE], method[MAXLINE], url[MAXLINE], version[MAXLINE];
+  char filename[MAXLINE], cgiargs[MAXLINE];
+  int is_static;
 
   rio_readinitb(&rio, fd);
   // first line
   rio_readlineb(&rio, buf, MAXLINE);
+
+  printf("Request headers:\n");
+  printf("%s", buf);
   sscanf(buf, "%s %s %s", method, url, version);
 
   if(strcasecmp(method, "GET")) {
-    send_error(fd, method, "501", "short", "long");
+    clienterror(fd, method, "501", "Not implemented", "Tiny does not implement this method");
     return;
   }
 
   read_requesthdrs(&rio);
   /* Parse URI from GET request */
-  is_static = parse_uri(uri, filename, cgiargs);
+  is_static = parse_uri(url, filename, cgiargs);
+  
   if(stat(filename, &sbuf) < 0) {
-    cilenterror();
+    clienterror(fd, filename, "404", "Not found", "Tiny couldn't find this file.");
     return;
   }
 
   if(is_static) {
     serve_static(fd, filename, sbuf.st_size);
-  } else {
-    serve_dynamic(filename, sbuf.st_size, cgiargs);
+  }
+  else {
+    serve_dynamic(fd, filename, cgiargs);
   }
 }
 
@@ -107,7 +122,7 @@ void serve_static(int fd, char *filename, int filesize) {
   srcfd = open(filename, O_RDONLY, 0);
   srcp = mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
   close(srcfd);
-  rio_writen(fd, srcp, filesize);
+  rio_written(fd, srcp, filesize);
   munmap(srcp, filesize);
 }
 
@@ -120,7 +135,7 @@ void serve_dynamic(int fd, char *filename, char *cgiargs) {
   sprintf(buf, "Server: Tiny Web Server\r\n");
   rio_written(fd, buf, strlen(buf));
 
-  if (Fork() == 0) { /* Child */
+  if (fork() == 0) { /* Child */
     /* Real server would set all CGI vars here */
     setenv("QUERY_STRING", cgiargs, 1);
     dup2(fd, STDOUT_FILENO); /* Redirect stdout to client */
@@ -136,4 +151,18 @@ void serve_dynamic(int fd, char *filename, char *cgiargs) {
 void get_filetype(char *filename, char *filetype) {
 
 
+}
+
+void clienterror(int fd, char *cause, char *errnum,
+  char *shortmsg, char *longmsg)
+{
+  char buf[MAXLINE], body[MAXBUF];
+
+  sprintf(body, "<html><title>Tiny Error</title>");
+  sprintf(body, "%s<body bgcolor=""555555"">\r\n", body);
+  sprintf(body, "%s%s: %s\r\n", body, errnum, shortmsg);
+
+  sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
+  rio_written(fd, buf, strlen(buf));
+  rio_written(fd, body, strlen(body));
 }
