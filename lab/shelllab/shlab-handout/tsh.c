@@ -181,7 +181,10 @@ void eval(char *cmdline)
     if((pid = fork()) == 0) {
       sigprocmask(SIG_SETMASK, &prevMask, NULL); // retrieve the current signal mask
       setpgid(0, 0);
-      execve(argv[0], argv, environ);
+
+      if(execve(argv[0], argv, environ) < 0)
+        printf("%s: Command not found\n", argv[0]);
+
       exit(0);
     }
 
@@ -283,27 +286,48 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv)
 {
   struct job_t *job;
+  int jid;
   char *p = *(argv + 1);
+  int isFG = strcmp(*argv, "bg");
 
-  if(*p == '%')
-    job = getjobjid(jobs, atoi(++p));
-  else
-    job = getjobpid(jobs, atoi(p));
-
-  if(job == NULL) {
-    printf("kill (fg) error: No such process\n");
+  if(p == NULL) {
+    if(isFG)
+      printf("fg command requires PID or %%jobid argument\n");
+    else
+      printf("bg command requires PID or %%jobid argument\n");
     return;
   }
 
-  if(strcmp(*argv, "bg"))
+  if(*p == '%')
+    jid = atoi(p + 1);
+  else
+    jid = atoi(p);
+
+  job = getjobjid(jobs, jid);
+  if(job == NULL) {
+    if(jid == 0) {
+      if(isFG)
+        printf("fg: argument must be a PID or %%jobid\n");
+      else
+        printf("bg: argument must be a PID or %%jobid\n");
+    }
+    else if(*p == '%')
+      printf("%%%d: No such job\n", jid);
+    else
+      printf("(%d): No such process\n", jid);
+    return;
+  }
+
+  if(isFG)
     job->state = FG;
   else
     job->state = BG;
 
   kill(-job->pid, SIGCONT);
-  if(strcmp(*argv, "bg"))
+  if(isFG)
     waitfg(job->pid);
-
+  else
+    printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
   return;
 }
 
@@ -378,10 +402,9 @@ void sigchld_handler(int sig)
       deletejob(jobs, pid);
       printf("child %d terminated abnormally: %d, sig: %d\n", pid, wstatus, WEXITSTATUS(wstatus));
     }
-
-    if(verbose)
-      printf("sigchld_handler: exiting\n");
   }
+  if(verbose)
+    printf("sigchld_handler: exiting\n");
 }
 
 /*
