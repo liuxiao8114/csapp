@@ -42,7 +42,7 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N])
             }
         }
     }
-    
+
     return 1;
 }
 
@@ -75,16 +75,25 @@ void transpose_32_64(int M, int N, int A[N][M], int B[M][N]) {
 }
 
 int main() {
-  int m = 8;
-  int n = 8;
-  int a[n][m], b[m][n];
+  int s = 2;
+  int b = 4;
 
-  int i, j;
-  for(i = 0; i < n; i++)
-    for(j = 0; j < m; j++)
-      a[i][j] = i * n + j;
-
-  transpose_32_64(m, n, a, b);
+  unsigned x = 0x4;
+  unsigned y = 0x456; // 1000 1001 1100
+  printf("%x\n", x);
+  printf("%x\n", y>>b);
+  printf("%x\n", (y>>b) / x);
+  printf("%x\n", (1<<s) - 1);
+  // int m = 8;
+  // int n = 8;
+  // int a[n][m], b[m][n];
+  //
+  // int i, j;
+  // for(i = 0; i < n; i++)
+  //   for(j = 0; j < m; j++)
+  //     a[i][j] = i * n + j;
+  //
+  // transpose_32_64(m, n, a, b);
   // trans(m, n, a, b);
 
   // for(j = 0; j < m; j++)
@@ -117,19 +126,25 @@ int main() {
   printf("s0: %s, s1: %s\n", *s, *(s+1));
   return 1;
 
+
+  */
   // calloc and malloc
-  int *sc = calloc(4, sizeof(int));
-  int *sm = malloc(4* sizeof(int));
+  char **sc = calloc(4, sizeof(int));
+  char **sm = malloc(4* sizeof(int));
   if(sc)
-    printf("sc: %d\n", *sc); // print 0
+    printf("sc: %x\n", *sc); // print 0
   if(sm)
-    printf("sm: %d\n", *sm); // print 0
+    printf("sm: %x\n", *sm); // print 0
+
+  if(*sc)
+    printf("sc: %s\n", *sc); // print 0
+  if(*sm)
+    printf("sm: %s\n", *sm); // print 0
 
   if(sc + 1)
-    printf("sc: %d\n", *(sc+1)); // print 0
+    printf("sc: %x\n", *(sc+1)); // print 0
   if(sm + 1)
-    printf("sm: %d\n", *(sm+1)); // print 0
-  */
+    printf("sm: %x\n", *(sm+1)); // print 0
   // printf("%d\n", ~(-1 << 1));
   // printf("%d\n", ~(-1 << 3));
   // printf("%d\n", ~(-1 << 5));
