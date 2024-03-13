@@ -54,10 +54,102 @@ void trans(int M, int N, int A[N][M], int B[M][N]) {
       B[j][i] = A[i][j];
 }
 
+/* 61 * 67 */
+void trans_v1(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j, k;
+
+  for (i = 0; i < N; i++) {
+    for (j = 0; j < M; j++) {
+      B[j][i] = A[i][j];
+
+    }
+  }
+
+}
+
+// void bijk(array A, array B, array C, int n, int bsize)
+// {
+//   int i, j, k, kk, jj;
+//   double sum;
+//   int en = bsize * (n/bsize); /* Amount that fits evenly into blocks */
+//
+//   for (i = 0; i < n; i++)
+//     for (j = 0; j < n; j++)
+//       C[i][j] = 0.0;
+//
+//   for (kk = 0; kk < en; kk += bsize) {
+//     for (jj = 0; jj < en; jj += bsize) {
+//       for (i = 0; i < n; i++) {
+//         for (j = jj; j < jj + bsize; j++) {
+//           sum = C[i][j];
+//
+//           for (k = kk; k < kk + bsize; k++)
+//             sum += A[i][k]*B[k][j];
+//
+//           C[i][j] = sum;
+//         }
+//       }
+//     }
+//   }
+// }
+
+void transpose_61(int M, int N, int A[N][M], int B[M][N]) {
+
+}
+
+/*
+  5-1-5
+  2^10 = 1024B L1-d
+  int bsize = (1<<b) / sizeof(int)
+  i = 0
+    b[0,0] a[0,0] m, m  y-s00b0,x-s00b0
+    b[1,0] a[0,1] m, h  y-s08b0,x-s00b1
+    b[2,0] a[0,2] m, h  y-s16b0,x-s00b2
+    b[3,0] a[0,3] m, h  y-s24b0,x-s00b3
+  i = 1
+    b[0,1] a[1,0] h, m  y-s00b1,x-s08b0
+    b[1,1] a[1,1] h, h  y-s08b1,x-s08b1
+    b[2,1] a[1,2] h, h  y-s16b1,x-s08b2
+    b[3,1] a[1,3] h, h  y-s24b1,x-s08b3
+  i = 2
+    b[0,2] a[2,0] h, m  y-s00b2,x-s16b0
+    b[1,2] a[2,1] h, h  y-s08b2,x-s16b1
+    b[2,2] a[2,2] h, h  y-s16b2,x-s16b2
+    b[3,2] a[2,3] h, h  y-s24b2,x-s16b3
+  i = 3
+    b[0,3] a[3,0] h, m  y-s00b1,x-s16b0
+    b[1,3] a[3,1] h, h  y-s00b1,x-s16b1
+    b[2,3] a[3,2] h, h  y-s00b1,x-s16b2
+    b[3,3] a[3,3] h, h  y-s00b1,x-s16b3
+
+  i = 0
+    b[4,0] a[0,4] m, m  y-s00b0,x-s01b0
+    b[5,0] a[0,5] m, h  y-s08b0,x-s01b1
+    b[6,0] a[0,6] m, h  y-s16b0,x-s01b2
+    b[7,0] a[0,7] m, h  y-s24b0,x-s01b3
+  i = 1
+    b[4,1] a[1,4] h, m
+    b[5,1] a[1,5] h, h
+    b[6,1] a[1,6] h, h
+    b[7,1] a[1,7] h, h
+  i = 2
+    b[4,2] a[2,4] h, m
+    b[5,2] a[2,5] h, h
+    b[6,2] a[2,6] h, h
+    b[7,2] a[2,7] h, h
+  i = 3
+    b[4,3] a[3,4] h, m
+    b[5,3] a[3,5] h, h
+    b[6,3] a[3,6] h, h
+    b[7,3] a[3,7] h, h
+
+    60 * 60
+*/
+
 void transpose_32_64(int M, int N, int A[N][M], int B[M][N]) {
-  int i, j, k, ii, jj;
-  int bsize = 5;
-  int en = bsize * (M / bsize); // assume M == N
+  int i, j, ii, jj;
+  int bsize = (1<<5) / sizeof(int);
+  int en = (M <= N) ? (bsize * (M / bsize)) : (bsize * (N / bsize));
 
   for(ii = 0; ii < en; ii += bsize)
     for(jj = 0; jj < en; jj += bsize)
@@ -67,33 +159,25 @@ void transpose_32_64(int M, int N, int A[N][M], int B[M][N]) {
           B[j][i] = A[i][j];
         }
 
-  for(i = ii - bsize; i < M; i++)
-    for(j = jj - bsize; j < N; j++) {
+  printf("--------------------\n");
+  for(i = ii; i < M; i++)
+    for(j = jj; j < N; j++) {
       printf("b[%d][%d]=a[%d][%d]=%d\n", j, i, i, j, A[i][j]);
       B[j][i] = A[i][j];
     }
 }
 
 int main() {
-  int s = 2;
-  int b = 4;
+  int m = 23;
+  int n = 29;
+  int a[n][m], b[m][n];
 
-  unsigned x = 0x4;
-  unsigned y = 0x456; // 1000 1001 1100
-  printf("%x\n", x);
-  printf("%x\n", y>>b);
-  printf("%x\n", (y>>b) / x);
-  printf("%x\n", (1<<s) - 1);
-  // int m = 8;
-  // int n = 8;
-  // int a[n][m], b[m][n];
-  //
-  // int i, j;
-  // for(i = 0; i < n; i++)
-  //   for(j = 0; j < m; j++)
-  //     a[i][j] = i * n + j;
-  //
-  // transpose_32_64(m, n, a, b);
+  int i, j;
+  for(i = 0; i < n; i++)
+    for(j = 0; j < m; j++)
+      a[i][j] = i * n + j;
+
+  transpose_32_64(m, n, a, b);
   // trans(m, n, a, b);
 
   // for(j = 0; j < m; j++)
@@ -126,25 +210,6 @@ int main() {
   printf("s0: %s, s1: %s\n", *s, *(s+1));
   return 1;
 
-
-  */
-  // calloc and malloc
-  char **sc = calloc(4, sizeof(int));
-  char **sm = malloc(4* sizeof(int));
-  if(sc)
-    printf("sc: %x\n", *sc); // print 0
-  if(sm)
-    printf("sm: %x\n", *sm); // print 0
-
-  if(*sc)
-    printf("sc: %s\n", *sc); // print 0
-  if(*sm)
-    printf("sm: %s\n", *sm); // print 0
-
-  if(sc + 1)
-    printf("sc: %x\n", *(sc+1)); // print 0
-  if(sm + 1)
-    printf("sm: %x\n", *(sm+1)); // print 0
   // printf("%d\n", ~(-1 << 1));
   // printf("%d\n", ~(-1 << 3));
   // printf("%d\n", ~(-1 << 5));

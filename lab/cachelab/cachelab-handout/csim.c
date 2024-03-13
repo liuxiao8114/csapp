@@ -12,7 +12,7 @@
 #define MAXLINE 1000
 
 struct cline {
-  unsigned tag;
+  long tag;
   unsigned count;
   unsigned index;
 };
@@ -28,8 +28,8 @@ int phelp() {
   return 0;
 }
 
-int atoh(char *buf, char *isM) {
-  int num = 0;
+long atoh(char *buf, char *isM) {
+  long num = 0;
 
   while(*buf == ' ')
     buf++;
@@ -45,10 +45,6 @@ int atoh(char *buf, char *isM) {
   while(*buf == ' ')
     buf++;
 
-  /*
-    0:30(48) A:41(65) a:61( 97)
-    9:39(57) Z:5A(90) z:7A(122)
-  */
   char *p = buf;
 
   while(*p != ',') {
@@ -92,7 +88,8 @@ void cacheSearch(struct cline *cacheline, int tag, int size, int *hcp, int *mcp,
       clp->count++;
       clp->index = instruction_index;
       *hcp = *hcp + 1;
-      printf("hit");
+      if(verbose == ON)
+        printf("hit");
       return;
     }
 
@@ -104,7 +101,8 @@ void cacheSearch(struct cline *cacheline, int tag, int size, int *hcp, int *mcp,
   if(l < size && clp->count == 0) {
     *mcp = *mcp + 1;
     *clp = newCacheLine(tag);
-    printf("miss");
+    if(verbose == ON)
+      printf("miss");
   }
   // miss && no room, evict one(miss, evit)
   else if(l == size) {
@@ -112,7 +110,8 @@ void cacheSearch(struct cline *cacheline, int tag, int size, int *hcp, int *mcp,
     *ecp = *ecp + 1;
 
     cacheline[evictIndex] = newCacheLine(tag);
-    printf("miss, evict");
+    if(verbose == ON)
+      printf("miss, evict");
   }
 }
 
@@ -120,7 +119,7 @@ int main(int argc, char* argv[]) {
   int hc, mc, ec;
   char c;
   int s, e, b;
-  volatile int addr;
+  volatile long addr;
 
   char *buf = malloc(MAXLINE);
   char *filename = NULL;
@@ -159,10 +158,7 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  printf("s: %d\n", s);
-  printf("e: %d\n", e);
-  printf("b: %d\n", b);
-
+  // printf("s: %d, e: %d, b: %d\n", s, e, b);
   FILE *file = fopen(filename, "r");
 
   if(!file)
@@ -178,23 +174,19 @@ int main(int argc, char* argv[]) {
   */
   struct cline **cache;
 
-  cache = calloc((1 << (s-1)), sizeof(struct cline *));
+  cache = calloc((1 << s), sizeof(struct cline *));
   hc = mc = ec = 0;
 
   while(fgets(buf, MAXLINE, file) != NULL) {
-    printf("read: %s", buf);
     addr = atoh(buf, &isM);
 
     if(addr == IGNORE)
       continue;
 
-    int sno = (addr>>b) % (1<<s) - 1;
+    int sno = (addr>>b) % (1<<s);
     int tag = addr>>(s+b);
 
-    printf("addr:  %d\n", addr);
-    printf("tag: 0x%x\n", tag);
-    printf("set:   %d\n", sno);
-
+    printf("0x%lx|0x%x|%u: ", addr, tag, sno);
     instruction_index++;
 
     // if the cacheset is empty, init <miss>
@@ -202,19 +194,22 @@ int main(int argc, char* argv[]) {
       cache[sno] = calloc(e, sizeof(struct cline));
       *cache[sno] = newCacheLine(tag);
       mc++;
-      printf("miss");
+      if(verbose == ON)
+        printf("miss");
     } else
       cacheSearch(cache[sno], tag, e, &hc, &mc, &ec, verbose);
 
     if(isM == ON) {
       hc++;
-      printf(", hit\n\n");
+      if(verbose == ON)
+        printf(", hit\n");
     } else
-      printf("\n\n");
+      if(verbose == ON)
+        printf("\n");
   }
 
-  printf("hc-mc-ec: %d-%d-%d\n", hc, mc, ec);
-  // printSummary(hc, mc, ec);
+  // printf("hc-mc-ec: %d-%d-%d\n", hc, mc, ec);
+  printSummary(hc, mc, ec);
   buf = NULL;
   filename = NULL;
 

@@ -16,7 +16,7 @@ test-trans: test-trans.c trans.o cachelab.c cachelab.h
 tracegen: tracegen.c trans.o cachelab.c
 	$(CC) $(CFLAGS) -O0 -o tracegen tracegen.c trans.o cachelab.c
 
-trans.o: trans.c
+trans: trans.c
 	$(CC) $(CFLAGS) -O0 -c trans.c
 
 testc: testc.c

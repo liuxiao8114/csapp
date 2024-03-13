@@ -15,6 +15,10 @@ Check the correctness and performance of your transpose functions:
     linux> ./test-trans -M 64 -N 64
     linux> ./test-trans -M 61 -N 67
 
+    • 32 × 32: 8 points if m < 300, 0 points if m > 600
+    • 64 × 64: 8 points if m < 1, 300, 0 points if m > 2, 000
+    • 61 × 67: 10 points if m < 2, 000, 0 points if m > 3, 000
+
 Check everything at once (this is the program that your instructor runs):
     linux> ./driver.py
 
@@ -56,6 +60,8 @@ traces/      Trace files used by test-csim.c
 ./csim -s 2 -E 4 -b 3 -t traces/trans.trace
 ./csim -s 5 -E 1 -b 5 -t traces/trans.trace
 ./csim -s 5 -E 1 -b 5 -t traces/long.trace
+
+./csim -v -s 5 -E 1 -b 5 -t trace.f0 > aaa
 
 16, 2, 16
 4, 2, 4

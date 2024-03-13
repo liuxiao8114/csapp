@@ -13,35 +13,6 @@
 int is_transpose(int M, int N, int A[N][M], int B[M][N]);
 
 /*
- * transpose_submit - This is the solution transpose function that you
- *     will be graded on for Part B of the assignment. Do not change
- *     the description string "Transpose submission", as the driver
- *     searches for that string to identify the transpose function to
- *     be graded.
- */
-char transpose_submit_desc[] = "Transpose submission";
-void transpose_submit(int M, int N, int A[N][M], int B[M][N])
-{
-  // s: 5, E: 1, b: 5
-  // ./test-trans -M 32 -N 32
-  if(M == N && (M == 32 || M == 64))
-    transpose_32_64(M, N, A, B);
-}
-
-char transpose_32_64[] = "Transpose for 32 and 64";
-void transpose_32_64(int M, int N, int A[N][M], int B[M][N]) {
-  int i, j, k, ii, jj;
-  int bsize = 5;
-  int en = bsize * (M / bsize); // assume M == N
-
-  for(ii = 0; ii < en; ii += bsize)
-    for(jj = 0; jj < en; jj += bsize)
-      for(i = ii; i < ii + bsize; i++)
-        for(j = jj; j < jj + bsize; j++)
-          B[j][i] = A[i][j];
-}
-
-/*
  * You can define additional transpose functions below. We've defined
  * a simple one below to help you get started.
  */
@@ -60,7 +31,69 @@ void trans(int M, int N, int A[N][M], int B[M][N])
             B[j][i] = tmp;
         }
     }
+}
 
+char transpose_32_desc[] = "Transpose for 32";
+void transpose_32(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j, k, ii, jj;
+  int bsize = 8;
+  // int bsize = (1<<5) / sizeof(int);
+  int en = (M <= N) ? (bsize * (M / bsize)) : (bsize * (N / bsize));
+
+  for(ii = 0; ii < en; ii += bsize)
+    for(jj = 0; jj < en; jj += bsize)
+      for(i = ii; i < ii + bsize; i++) {
+        k = jj + i%bsize + 1;
+        for(j = k; j < jj + bsize; j++)
+          B[j][i] = A[i][j];
+
+        for(j = jj; j < k; j++)
+          B[j][i] = A[i][j];
+      }
+
+  for(i = ii; i < M; i++)
+    for(j = jj; j < N; j++)
+      B[j][i] = A[i][j];
+}
+
+char transpose_64_desc[] = "Transpose for 64";
+void transpose_64(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j, k, ii, jj;
+  int bsize = 4;
+  // int bsize = (1<<5) / sizeof(int);
+  int en = (M <= N) ? (bsize * (M / bsize)) : (bsize * (N / bsize));
+
+  for(ii = 0; ii < en; ii += bsize)
+    for(jj = 0; jj < en; jj += bsize)
+      for(i = ii; i < ii + bsize; i++) {
+        k = jj + i%bsize + 1;
+        for(j = k; j < jj + bsize; j++)
+          B[j][i] = A[i][j];
+
+        for(j = jj; j < k; j++)
+          B[j][i] = A[i][j];
+      }
+
+  for(i = ii; i < M; i++)
+    for(j = jj; j < N; j++)
+      B[j][i] = A[i][j];
+}
+
+/*
+ * transpose_submit - This is the solution transpose function that you
+ *     will be graded on for Part B of the assignment. Do not change
+ *     the description string "Transpose submission", as the driver
+ *     searches for that string to identify the transpose function to
+ *     be graded.
+ */
+char transpose_submit_desc[] = "Transpose submission";
+void transpose_submit(int M, int N, int A[N][M], int B[M][N])
+{
+  // s: 5, E: 1, b: 5
+  if(M == N && M == 32)
+    transpose_32(M, N, A, B);
+  else if(M == N && M == 64)
+    transpose_64(M, N, A, B);
 }
 
 /*
@@ -76,7 +109,7 @@ void registerFunctions()
     registerTransFunction(transpose_submit, transpose_submit_desc);
 
     /* Register any additional transpose functions */
-    registerTransFunction(trans, trans_desc);
+    // registerTransFunction(trans, trans_desc);
 
 }
 
