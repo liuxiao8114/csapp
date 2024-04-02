@@ -64,13 +64,13 @@ void transpose_64(int M, int N, int A[N][M], int B[M][N]) {
   int aset, bset;
   int offset;
 
+  // jj = 0~31, ii = 0~31
   for(jj = 0; jj < 32; jj += bsize) {
     kk = jj + subsize;
-
     for(ii = 0; ii < 32; ii += bsize) {
       for(i = ii; i < ii + bsize; i++) {
         k = jj + i%subsize + 1;
-        
+
         for(j = kk; j < jj + bsize; j++) {
           offset = i + bsize*(j - kk + 1);
           while(offset < jj + bsize*(j - kk + 1))
@@ -95,28 +95,32 @@ void transpose_64(int M, int N, int A[N][M], int B[M][N]) {
           B[j][i] = B[32+offset/64][offset%64];
         }
     }
+  }
 
+  // jj = 0~31, ii = 32~63
+  for(jj = 0; jj < 32; jj += bsize) {
+    kk = jj + subsize;
     for(ii = 32; ii < 64; ii += bsize) {
       for(i = ii; i < ii + bsize; i++) {
         for(j = jj; j < jj + subsize; j++)
           B[j][i] = A[i][j];
 
         aset = (i*8)%32 + jj/8;
-        bset = 4;
+        bset = 0;
 
         if(aset >= bset && aset < bset + 4) {
           for(j = kk + aset - bset + 1; j < jj + bsize; j++) {
-            offset = i%8 + bsize*(j - kk + 4);
+            offset = i%8 + bsize*(j - kk);
             B[32][offset%64] = A[i][j];
           }
           for(j = kk; j <= kk + aset - bset; j++) {
-            offset = i%8 + bsize*(j - kk + 4);
+            offset = i%8 + bsize*(j - kk);
             B[32][offset%64] = A[i][j];
           }
-        } 
+        }
         else {
           for(j = kk; j < jj + bsize; j++) {
-            offset = i%8 + bsize*(j - kk + 4);
+            offset = i%8 + bsize*(j - kk);
             B[32][offset%64] = A[i][j];
           }
         }
@@ -124,15 +128,15 @@ void transpose_64(int M, int N, int A[N][M], int B[M][N]) {
 
       for(j = jj + subsize; j < jj + bsize; j++)
         for(i = ii; i < ii + bsize; i++) {
-          offset = i%8 + bsize*(j - kk + 4);
+          offset = i%8 + bsize*(j - kk);
           B[j][i] = B[32][offset%64];
         }
     }
   }
 
+  // jj = 32~63, ii = 0~31
   for(jj = 32; jj < 64; jj += bsize) {
     kk = jj + subsize;
-
     for(ii = 0; ii < 32; ii += bsize) {
       for(i = ii; i < ii + bsize; i++) {
         for(j = jj; j < jj + subsize; j++)
@@ -149,7 +153,7 @@ void transpose_64(int M, int N, int A[N][M], int B[M][N]) {
             offset = i%8 + bsize*(j - kk + 4);
             B[32][offset%64] = A[i][j];
           }
-        } 
+        }
         else {
           for(j = kk; j < jj + bsize; j++) {
             offset = i%8 + bsize*(j - kk + 4);
@@ -166,6 +170,7 @@ void transpose_64(int M, int N, int A[N][M], int B[M][N]) {
     }
   }
 
+  // jj = 32~63, ii = 0~31
   for(jj = 32; jj < 64; jj += subsize) {
     for(ii = 32; ii < 64; ii += subsize) {
       for(i = ii; i < ii + subsize; i++) {
@@ -198,7 +203,7 @@ void transpose_64_v2(int M, int N, int A[N][M], int B[M][N]) {
     for(ii = 0; ii < 64; ii += bsize) {
       for(i = ii; i < ii + bsize; i++) {
         k = jj + i%subsize + 1;
-        
+
         for(j = kk; j < jj + bsize; j++) {
           offset = i + bsize*(j - kk + 1);
           while(offset < jj + bsize*(j - kk + 1))
@@ -245,7 +250,7 @@ void transpose_64_v2(int M, int N, int A[N][M], int B[M][N]) {
             offset = i%8 + bsize*(j - kk + 4);
             B[32][offset%64] = A[i][j];
           }
-        } 
+        }
         else {
           for(j = kk; j < jj + bsize; j++) {
             offset = i%8 + bsize*(j - kk + 4);
