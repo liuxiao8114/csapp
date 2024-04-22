@@ -57,6 +57,7 @@ void transpose_32(int M, int N, int A[N][M], int B[M][N]) {
 }
 
 char transpose_64_desc[] = "Transpose for 64";
+// 1255 misses
 void transpose_64(int M, int N, int A[N][M], int B[M][N]) {
   int i, j, k, ii, jj, kk;
   int bsize = 8;
@@ -170,8 +171,43 @@ void transpose_64(int M, int N, int A[N][M], int B[M][N]) {
     }
   }
 
-  // jj = 32~63, ii = 0~31
-  for(jj = 32; jj < 64; jj += subsize) {
+  // jj = 32~47, ii = 32~63
+  for(jj = 32; jj < 48; jj += bsize) {
+    kk = jj + subsize;
+
+    for(ii = 32; ii < 56; ii += bsize) {
+      for(i = ii; i < ii + bsize; i++) {
+        for(j = kk; j < jj + bsize; j++)
+          B[56 + j - kk][56 + i - ii] = A[i][j];
+
+        for(j = k = jj + i%subsize + 1; j < jj + subsize; j++)
+          B[j][i] = A[i][j];
+
+        for(j = jj; j < k; j++)
+          B[j][i] = A[i][j];
+      }
+
+      for(j = kk; j < jj + bsize; j++)
+        for(i = ii; i < ii + bsize; i++)
+          B[j][i] = B[56 + j - kk][56 + i - ii];
+    }
+  }
+
+  for(jj = 32; jj < 48; jj += subsize) {
+    for(ii = 56; ii < 64; ii += subsize) {
+      for(i = ii; i < ii + subsize; i++) {
+        k = jj + i%subsize + 1;
+        for(j = k; j < jj + subsize; j++)
+          B[j][i] = A[i][j];
+
+        for(j = jj; j < k; j++)
+          B[j][i] = A[i][j];
+      }
+    }
+  }
+
+  // jj = 48~63, ii = 32~63
+  for(jj = 48; jj < 64; jj += subsize) {
     for(ii = 32; ii < 64; ii += subsize) {
       for(i = ii; i < ii + subsize; i++) {
         k = jj + i%subsize + 1;
@@ -353,9 +389,161 @@ void transpose_64_v0(int M, int N, int A[N][M], int B[M][N]) {
       B[j][i] = A[i][j];
 }
 
-char transpose_desc[] = "Transpose for 61 * 67";
-void transpose(int M, int N, int A[N][M], int B[M][N]) {
+char transpose_desc[] = "Transpose for A[67][61] to B[61][67]";
+void transij(int M, int N, int A[N][M], int B[M][N], int i, int jj) {
+  int j;
+  int aset, bset;
+  int tj1 = -1, tj2 = -1;
 
+  for(j = jj; j < jj + 8 && j < M; j++) {
+    aset = ((i*M + j)/8)%32;
+    bset = ((j*N + i)/8)%32;
+    if(bset == aset) {
+      if(tj1 == -1)
+        tj1 = j;
+      else
+        tj2 = j;
+    } else
+      B[j][i] = A[i][j];
+  }
+
+  if(tj1 != -1)
+    B[tj1][i] = A[i][tj1];
+  if(tj2 != -1)
+    B[tj2][i] = A[i][tj2];
+}
+
+// recrusive: hits:6205, misses:1974, evictions:1942
+//  iterator: hits:6217, misses:1980, evictions:1948
+void transpose_v4(int M, int N, int A[N][M], int B[M][N]) {
+  int i, ii, jj;
+
+  for(ii = 0; ii < 64; ii += 8)
+    for(jj = 0; jj < 56; jj += 8)
+      for(i = ii; i < ii + 8; i++)
+        transij(M, N, A, B, i, jj);
+
+  for(i = 0; i < 64; i++)
+    transij(M, N, A, B, i, 56);
+
+  for(jj = 0; jj < M; jj+=8)
+    for(i = 64; i < N; i++)
+      transij(M, N, A, B, i, jj);
+}
+
+// hits:6101, misses:2078, evictions:2046
+void transpose_v3(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j, ii, jj;
+
+  for(ii = 0; ii < 64; ii += 8)
+    for(jj = 0; jj < 56; jj += 8) {
+      transij(M, N, A, B, ii + 3, jj);
+
+      for(i = ii; i < ii + 3; i++)
+        transij(M, N, A, B, i, jj);
+
+      for(i = ii + 4; i < ii + 8; i++)
+        transij(M, N, A, B, i, jj);
+    }
+
+  for(i = 0; i < 64; i++)
+    for(j = 56; j < M; j++)
+      B[j][i] = A[i][j];
+
+  for(i = 64; i < N; i++)
+    for(j = 0; j < M; j++)
+      B[j][i] = A[i][j];
+}
+
+// hits:6106, misses:2073, evictions:2041
+void transpose_v2(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j, ii, jj;
+  int aset, bset;
+  int tj1 = -1, tj2 = -1;
+
+  for(ii = 0; ii < 64; ii += 8)
+    for(jj = 0; jj < 56; jj += 8)
+      for(i = ii; i < ii + 8; i++) {
+        for(j = jj; j < jj + 8; j++) {
+          aset = ((i*M + j)/8)%32;
+          bset = ((j*N + i)/8)%32;
+          if(bset == aset) {
+            if(tj1 == -1)
+              tj1 = j;
+            else
+              tj2 = j;
+          } else
+            B[j][i] = A[i][j];
+        }
+
+        if(tj1 != -1) {
+          B[tj1][i] = A[i][tj1];
+          tj1 = -1;
+        }
+        if(tj2 != -1) {
+          B[tj2][i] = A[i][tj2];
+          tj2 = -1;
+        }
+      }
+
+  for(i = 0; i < 64; i++)
+    for(j = 56; j < M; j++)
+      B[j][i] = A[i][j];
+
+  for(i = 64; i < N; i++)
+    for(j = 0; j < M; j++)
+      B[j][i] = A[i][j];
+}
+
+// bsize=8: hits:5947, misses:2232, evictions:2200
+void transpose_v1(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j, k, ii, jj;
+  int bsize = 8;
+
+  for(ii = 0; ii < 64; ii += bsize)
+    for(jj = 0; jj < 56; jj += bsize)
+      for(i = ii; i < ii + bsize; i++) {
+        k = jj + i%bsize + 1;
+        for(j = k; j < jj + bsize; j++)
+          B[j][i] = A[i][j];
+
+        for(j = jj; j < k; j++)
+          B[j][i] = A[i][j];
+      }
+
+  for(i = 0; i < 64; i++)
+    for(j = 56; j < M; j++)
+      B[j][i] = A[i][j];
+
+  for(i = 64; i < N; i++)
+    for(j = 0; j < M; j++)
+      B[j][i] = A[i][j];
+}
+
+// bsize=8: hits:5855, misses:2374, evictions:2342
+// bsize=4: hits:5575, misses:2654, evictions:2622
+void transpose_v0(int M, int N, int A[N][M], int B[M][N]) {
+  int i, j, k, ii, jj;
+  int bsize = 8;
+
+  for(jj = 0; jj < 56; jj += bsize)
+    for(ii = 0; ii < 56; ii += bsize)
+      for(i = ii; i < ii + bsize; i++) {
+        k = jj + i%bsize + 1;
+        for(j = k; j < jj + bsize; j++)
+          B[j][i] = A[i][j];
+
+        for(j = jj; j < k; j++)
+          B[j][i] = A[i][j];
+      }
+
+  for(i = 0; i < M; i++)
+    for(j = 56; j < M; j++)
+      B[j][i] = A[i][j];
+
+  for(i = 56; i < N; i++)
+    for(j = 0; j < M; j++)
+      B[j][i] = A[i][j];
 }
 
 /*
@@ -374,7 +562,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
   else if(M == N && M == 64)
     transpose_64(M, N, A, B);
   else
-    transpose(M, N, A, B);
+    transpose_v3(M, N, A, B);
 }
 
 /*

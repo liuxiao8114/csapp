@@ -68,3 +68,7 @@ traces/      Trace files used by test-csim.c
       0 1
 0000
 1111
+
+20240402
+1. 改写jj = 32~63, ii =  0~31部分，
+2. 细分原有的jj = 0~31, ii = 0~63循环，分割成

@@ -1,7 +1,7 @@
 #include <stdio.h>
 
-int M = 64;
-int N = 64;
+int M = 61;
+int N = 67;
 
 void transpa(int A[N][M], int B[M][N], int si, int sj, int ti, int tj) {
   printf("B[%2d][%2d]=A[%2d][%2d](%d)\n", tj,ti,si,sj,A[si][sj]);
@@ -31,6 +31,7 @@ int is_transpose(int A[N][M], int B[M][N])
     return 1;
 }
 
+// 1255 misses(64 * 64)
 void trans_v2(int A[N][M], int B[M][N]) {
   int i, j, k, ii, jj, kk;
   int bsize = 8;
@@ -91,7 +92,7 @@ void trans_v2(int A[N][M], int B[M][N]) {
             offset = i%8 + bsize*(j - kk + 4);
             transpa(A, B, i, j, offset%64, 32);
           }
-        } 
+        }
         else {
           for(j = kk; j < jj + bsize; j++) {
             offset = i%8 + bsize*(j - kk + 4);
@@ -145,7 +146,41 @@ void trans_v2(int A[N][M], int B[M][N]) {
     }
   }
 
-  for(jj = 32; jj < 64; jj += subsize)
+  for(jj = 32; jj < 48; jj += bsize) {
+    kk = jj + subsize;
+
+    for(ii = 32; ii < 64; ii += bsize) {
+      for(i = ii; i < ii + bsize; i++) {
+        for(j = kk; j < jj + bsize; j++)
+          transpa(A, B, i, j, 40 + i - ii, 56 + j - kk);
+
+        for(j = k = jj + i%subsize + 1; j < jj + subsize; j++)
+          transp(A, B, i, j);
+
+        for(j = jj; j < k; j++)
+          transp(A, B, i, j);
+      }
+
+      for(j = kk; j < jj + bsize; j++)
+        for(i = ii; i < ii + bsize; i++)
+          transpb(B, 56 + j - kk, 40 + i - ii, i, j);
+    }
+  }
+
+  for(jj = 32; jj < 48; jj += subsize) {
+    for(ii = 56; ii < 64; ii += subsize) {
+      for(i = ii; i < ii + subsize; i++) {
+        k = jj + i%subsize + 1;
+        for(j = k; j < jj + subsize; j++)
+          transp(A, B, i, j);
+
+        for(j = jj; j < k; j++)
+          transp(A, B, i, j);
+      }
+    }
+  }
+
+  for(jj = 48; jj < 64; jj += subsize)
     for(ii = 32; ii < 64; ii += subsize) {
       for(i = ii; i < ii + subsize; i++) {
         k = jj + i%subsize + 1;
@@ -162,27 +197,8 @@ void trans_v2(int A[N][M], int B[M][N]) {
       transp(A, B, i, j);
 }
 
+// 287 misses (32*32)
 void trans_v1(int A[N][M], int B[M][N]) {
-  int i, j, ii, jj;
-  int bsize = 8;
-  // int bsize = (1<<5) / sizeof(int);
-  int en = (M <= N) ? (bsize * (M / bsize)) : (bsize * (N / bsize));
-
-  for(ii = 0; ii < en; ii += bsize)
-    for(jj = 0; jj < en; jj += bsize) {
-      printf("jj=%d\n", jj);
-      for(i = ii; i < ii + bsize; i++) {
-        printf("-----------------------\n");
-        for(j = jj + i%bsize + 1; j < jj + bsize; j++)
-          transp(A, B, i, j);
-
-        for(j = jj; j < jj + i%bsize + 1; j++)
-          transp(A, B, i, j);
-      }
-    }
-}
-
-void trans_v0(int A[N][M], int B[M][N]) {
   int i, j, ii, jj;
   int bsize = 8;
   // int bsize = (1<<5) / sizeof(int);
@@ -191,16 +207,84 @@ void trans_v0(int A[N][M], int B[M][N]) {
   for(ii = 0; ii < en; ii += bsize)
     for(jj = 0; jj < en; jj += bsize)
       for(i = ii; i < ii + bsize; i++) {
-        printf("-----------------------\n");
-        for(j = jj; j < jj + bsize; j++)
+        for(j = jj + i%bsize + 1; j < jj + bsize; j++)
+          transp(A, B, i, j);
+
+        for(j = jj; j < jj + i%bsize + 1; j++)
           transp(A, B, i, j);
       }
+}
+
+// M = 61, N = 67
+void trans_v0(int A[N][M], int B[M][N]) {
+  int i, j, ii, jj;
+  int bsize = 8;
+  // int bsize = (1<<5) / sizeof(int);
+  int en = (M <= N) ? (bsize * (M / bsize)) : (bsize * (N / bsize));
+
+  for(ii = 0; ii < 64; ii += bsize)
+    for(jj = 0; jj < en; jj += bsize)
+      for(i = ii; i < ii + bsize; i++)
+        for(j = jj; j < jj + bsize; j++)
+          transp(A, B, i, j);
+
+  for(i = 0; i < 64; i++)
+    for(j = en; j < M; j++)
+      transp(A, B, i, j);
+
+  for(i = 64; i < N; i++)
+    for(j = 0; j < M; j++)
+      transp(A, B, i, j);
+}
+
+void trans(int A[N][M], int B[M][N]) {
+  int i, j, ii, jj;
+  int bsize = 8;
+  // int bsize = (1<<5) / sizeof(int);
+  int en = (M <= N) ? (bsize * (M / bsize)) : (bsize * (N / bsize));
+
+  int aset, bset;
+  int tj1 = -1, tj2 = -1;
+  int k;
+
+  for(ii = 0; ii < en; ii += bsize)
+    for(jj = 0; jj < en; jj += bsize)
+      for(i = ii; i < ii + bsize; i++) {
+        for(j = jj; j < jj + bsize; j++) {
+          aset = ((i*M + j)/8)%32;
+          bset = ((j*N + i)/8)%32;
+          if(bset == aset) {
+            if(tj1 == -1)
+              tj1 = j;
+            else
+              tj2 = j;
+          } else
+            transp(A, B, i, j);
+        }
+
+        if(tj1 != -1) {
+          transp(A, B, i, tj1);
+          tj1 = -1;
+        }
+        if(tj2 != -1) {
+          transp(A, B, i, tj2);
+          tj2 = -1;
+        }
+      }
+
+  for(i = 0; i < M; i++)
+    for(j = en; j < M; j++)
+      transp(A, B, i, j);
+
+  for(i = en; i < N; i++)
+    for(j = 0; j < M; j++)
+      transp(A, B, i, j);
 }
 
 int main() {
   int a[N][M], b[M][N];  int i, j;
   for(i = 0; i < N; i++)
     for(j = 0; j < M; j++)
-      a[i][j] = i * N + j;  trans_v2(a, b);
+      a[i][j] = i * N + j;  trans(a, b);
   printf("is_transposed: %d\n", is_transpose(a, b));
 }
